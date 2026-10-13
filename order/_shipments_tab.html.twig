@@ -44,9 +44,10 @@
                     {% for shipment in shipments %}
                         <tr data-testid="order-shipment-row-{{ shipment.id }}" data-shipment-status="{{ shipment.status }}">
                             <td>
-                                <code>{{ shipment.ref }}</code>
+                                {# Plain text rather than <code> and text-muted: both sit under 4.5:1 on a striped row. #}
+                                <span class="font-monospace">{{ shipment.ref }}</span>
                                 {% if shipment.shipped_at %}
-                                    <small class="text-muted d-block">{{ 'Shipped on'|trans }} {{ shipment.shipped_at|date('Y-m-d H:i') }}</small>
+                                    <small class="d-block">{{ 'Shipped on'|trans }} {{ shipment.shipped_at|date('Y-m-d H:i') }}</small>
                                 {% endif %}
                             </td>
                             <td><span class="badge {{ status_classes[shipment.status]|default('text-bg-secondary') }}">{{ status_labels[shipment.status]|default(shipment.status) }}</span></td>
@@ -60,14 +61,14 @@
                                             <span dir="ltr">{{ shipment.delivery_ref }}</span>
                                         {% endif %}
                                     {% else %}
-                                        <span class="text-muted">{{ 'No tracking number'|trans }}</span>
+                                        <span>{{ 'No tracking number'|trans }}</span>
                                     {% endif %}
                                 </small>
                             </td>
                             <td>
                                 <ul class="list-unstyled mb-0 small">
                                     {% for line in shipment.lines %}
-                                        <li><span dir="ltr">{{ line.quantity }}</span> &times; {{ line.title }} <code class="text-muted">{{ line.ref }}</code></li>
+                                        <li><span dir="ltr">{{ line.quantity }}</span> &times; {{ line.title }} <span class="font-monospace small">{{ line.ref }}</span></li>
                                     {% endfor %}
                                 </ul>
                             </td>
@@ -105,7 +106,7 @@
         <form method="post" action="{{ path('admin.order.shipment.create', { order_id: order.id }) }}" data-testid="order-shipment-form">
             <input type="hidden" name="_token" value="{{ token }}">
             <div class="card-body">
-                <p class="small text-muted">{{ 'Set the quantity each line leaves with. A line left at zero stays to ship.'|trans }}</p>
+                <p class="small">{{ 'Set the quantity each line leaves with. A line left at zero stays to ship.'|trans }}</p>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle">
                         <caption class="visually-hidden">{{ 'Lines left to ship'|trans }}</caption>
@@ -119,7 +120,7 @@
                         <tbody>
                             {% for line in shippable_lines %}
                                 <tr data-testid="order-shipment-line-{{ line.order_product_id }}">
-                                    <td>{{ line.title }} <code class="text-muted">{{ line.ref }}</code></td>
+                                    <td>{{ line.title }} <span class="font-monospace small">{{ line.ref }}</span></td>
                                     <td class="text-end"><span dir="ltr">{{ line.remaining }}</span></td>
                                     <td class="text-end">
                                         <label for="shipment-line-{{ line.order_product_id }}" class="visually-hidden">{{ 'Quantity in this shipment'|trans }}</label>
