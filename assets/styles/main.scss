@@ -981,6 +981,22 @@ td.bo-datatable__details-col {
     }
 }
 
+// Edit language toggle: centring the boxes leaves the capitals of the code above the middle
+// of the flag, the font keeping more room over its letters than under them. Both sit on the
+// baseline instead, the flag lowered so that its middle meets the middle of the capitals
+// (about .35em above the baseline), and it takes no height so the button keeps the one of
+// the other small buttons.
+.bo-language-switcher__flag,
+.bo-language-switcher__code {
+    align-self: baseline;
+}
+
+.bo-language-switcher__flag {
+    position: relative;
+    top: calc(7px - .35em);
+    margin-top: -14px;
+}
+
 // Alerts - slightly bolder edge
 .alert {
     border-radius: .5rem;
