@@ -1045,10 +1045,11 @@ td.bo-datatable__details-col {
     border-color: $card-border-color;
 }
 
+// The selected entry carries text: the brand surface made for a white label, not $primary
 .dropdown-item.active,
 .dropdown-item:active {
-    background-color: var(--bs-primary);
-    color: #fff;
+    background-color: $btn-brand-surface;
+    color: $btn-brand-label;
 }
 
 // Code-style mono fields
