@@ -954,8 +954,9 @@ td.bo-datatable__details-col {
 
 // Tab bar hosting a trailing toolbar (e.g. the edit-language switcher) on the
 // same row as the tabs. The wrapper carries the bottom border so the line runs
-// full width; the inner nav-tabs drops its own border and nudges down 1px to
-// sit flush on it. On narrow screens the aside wraps below the tabs.
+// full width; the inner nav-tabs drops its own border, and Bootstrap's 1px pull
+// of each tab already lays the open one over it. The aside keeps its place: the
+// tabs that no longer fit go into the More menu of bo-tab-overflow.
 .bo-tab-bar {
     display: flex;
     flex-wrap: wrap;
@@ -965,10 +966,33 @@ td.bo-datatable__details-col {
     border-bottom: 1px solid $card-border-color;
     margin-bottom: 2rem;
 
+    // The tabs shrink before the aside wraps: bo-tab-overflow moves the ones that no longer fit into its More menu
     > .nav-tabs {
-        flex: 1 1 auto;
-        margin-bottom: -1px;
+        flex: 1 1 0;
+        min-width: 0;
+        margin-bottom: 0;
         border-bottom: 0;
+    }
+
+    // A tab keeps its label on one line and its width: the row clips or hands it to the More menu instead.
+    // Every tab takes the height of the tallest one (a count badge makes a tab taller), so that all of
+    // them reach the line under the row.
+    > .nav-tabs > .nav-item {
+        display: flex;
+        flex-shrink: 0;
+    }
+
+    > .nav-tabs .nav-link {
+        white-space: nowrap;
+    }
+
+    // Until bo-tab-overflow has laid the tabs out, they hold on one clipped row instead of wrapping for a frame
+    // (a pixel of padding, given back by the margin, keeps the open tab's overlap of the line unclipped)
+    &[data-controller~="bo-tab-overflow"]:not(.bo-tab-bar--ready) > .nav-tabs {
+        flex-wrap: nowrap;
+        overflow: hidden;
+        padding-bottom: 1px;
+        margin-bottom: -1px;
     }
 
     > .bo-tab-bar__aside {

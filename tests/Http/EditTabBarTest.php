@@ -24,7 +24,8 @@ use Thelia\Test\WebIntegrationTestCase;
 use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
 
 /**
- * The tab bar of an edit sheet offers the edit languages in a dropdown that only shows the
+ * The tab bar of an edit sheet keeps its tabs on one row (bo-tab-overflow moves the ones that
+ * do not fit into a More menu) and offers the edit languages in a dropdown that only shows the
  * language being edited.
  */
 final class EditTabBarTest extends WebIntegrationTestCase
@@ -57,6 +58,17 @@ final class EditTabBarTest extends WebIntegrationTestCase
         $this->injector->clear();
 
         parent::tearDown();
+    }
+
+    public function testTheTabBarHandsTheTabsThatDoNotFitToItsMoreMenu(): void
+    {
+        $crawler = $this->client->request('GET', $this->productSheet());
+        self::assertResponseIsSuccessful();
+
+        $bar = $crawler->filter('.bo-tab-bar');
+        self::assertCount(1, $bar);
+        self::assertSame('bo-tab-overflow', $bar->attr('data-controller'));
+        self::assertNotSame('', (string) $bar->attr('data-bo-tab-overflow-more-label-value'), 'The More menu gets a translated label.');
     }
 
     public function testTheEditLanguagesSitInADropdownThatShowsTheEditedOne(): void
