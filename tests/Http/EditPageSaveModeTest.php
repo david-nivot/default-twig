@@ -24,7 +24,7 @@ use Thelia\Test\WebIntegrationTestCase;
 use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
 
 /**
- * The general form of the product, category, folder and content sheets carries
+ * The general form of the product, category, folder, content and brand sheets carries
  * the Save / Save and close / Close toolbar at its top and its bottom. Save
  * brings the user back to the sheet, Save and close to the list the sheet
  * belongs to, the one the Close link points at.
@@ -95,6 +95,12 @@ final class EditPageSaveModeTest extends WebIntegrationTestCase
             $content = $factory->content($folder);
 
             return ['/admin/content/update/'.$content->getId(), '/admin/folders?folder_id='.$folder->getId()];
+        }];
+
+        yield 'brand' => ['brand', static function (FixtureFactory $factory): array {
+            $brand = $factory->brand();
+
+            return ['/admin/brand/update/'.$brand->getId(), '/admin/brand'];
         }];
     }
 
