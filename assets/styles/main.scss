@@ -960,6 +960,11 @@ td.bo-datatable__details-col {
     > .bo-tab-bar__aside {
         padding-bottom: .6rem;
     }
+
+    // The open tab starts with a save toolbar: half the gap keeps the buttons close to their tab
+    &:has(+ .tab-content > .tab-pane.active .bo-save-toolbar--top) {
+        margin-bottom: 1rem;
+    }
 }
 
 // Alerts - slightly bolder edge
@@ -3494,6 +3499,10 @@ form[data-bo-unsaved-changes-dirty] .bo-combinations-savebar {
 
     .bo-tab-bar {
         margin-bottom: 1.25rem;
+
+        &:has(+ .tab-content > .tab-pane.active .bo-save-toolbar--top) {
+            margin-bottom: .625rem;
+        }
     }
 }
 

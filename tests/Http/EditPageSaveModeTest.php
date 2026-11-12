@@ -122,6 +122,26 @@ final class EditPageSaveModeTest extends WebIntegrationTestCase
      * @param callable(FixtureFactory): array{string, string} $sheet
      */
     #[DataProvider('sheets')]
+    public function testTheTopToolbarOpensTheGeneralForm(string $name, callable $sheet): void
+    {
+        [$editUrl] = $sheet($this->factory);
+
+        $crawler = $this->client->request('GET', $editUrl);
+        self::assertResponseIsSuccessful();
+
+        $toolbars = $crawler->filter('[data-testid="'.$name.'-edit-form"] .bo-save-toolbar');
+        self::assertCount(2, $toolbars, 'One toolbar above the fields, one under them.');
+        self::assertSame($name.'-edit-top-save-stay', $toolbars->first()->filter('button')->first()->attr('data-testid'));
+        self::assertStringContainsString('bo-save-toolbar--top', (string) $toolbars->first()->attr('class'), 'The top toolbar halves the gap under the tab bar.');
+        self::assertStringNotContainsString('bo-save-toolbar--top', (string) $toolbars->last()->attr('class'));
+        self::assertCount(0, $crawler->filter('[data-testid="'.$name.'-edit-form"] .row .bo-save-toolbar'), 'No toolbar left inside the columns of the form.');
+        self::assertCount(0, $crawler->filter('[data-testid="'.$name.'-edit-dates-top"]'), 'The dates show under the bottom toolbar only.');
+    }
+
+    /**
+     * @param callable(FixtureFactory): array{string, string} $sheet
+     */
+    #[DataProvider('sheets')]
     public function testSaveAndCloseLeadsToTheListOfTheSheet(string $name, callable $sheet): void
     {
         [$editUrl, $listUrl] = $sheet($this->factory);
