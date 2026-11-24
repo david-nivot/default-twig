@@ -30,6 +30,7 @@ use BackOfficeDefaultTwigBundle\Service\Product\UnknownUnitCodeException;
 use BackOfficeDefaultTwigBundle\Service\SaleUnit\RestrictedAdminGuard;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\ParameterBag;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -809,6 +810,15 @@ final class ProductAdvancedController
         $form = $request->request;
         $productId = (int) $product->getId();
 
+        // A copy of the grid made before its fields were named by their combination posts them by
+        // place (quantity[]): read by id, each one would be missing, and the stock, the weight and
+        // the codes would be written empty. Nothing is saved, the tax rule included, and the page says why.
+        if ($this->postsGridFieldsByPlace($form)) {
+            $this->noticeGridPostedByPlace($request);
+
+            return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $productId, 'current_tab' => 'pse']));
+        }
+
         // The grid saves in the currency it displays, and sends it in a hidden field.
         $currency = (int) $form->get('currency', 0);
         if ($currency <= 0) {
@@ -823,7 +833,9 @@ final class ProductAdvancedController
         $useExchangeRate = (int) $form->get('use_exchange_rate', 0);
         $defaultPse = (int) $form->get('default_pse', 0);
 
-        $ids = $form->all('product_sale_element_id');
+        // Every field of the grid is named by the id of its combination (price[12]), so the
+        // order of the lines carries no meaning: a line moved without reload keeps its values.
+        $ids = array_values($form->all('product_sale_element_id'));
         $refs = $form->all('reference');
         $prices = $form->all('price');
         $weights = $form->all('weight');
@@ -832,6 +844,10 @@ final class ProductAdvancedController
         $eans = $form->all('ean_code');
         $mpns = $form->all('mpn');
         $manufacturerBrands = $form->all('manufacturer_brand_id');
+        // A project copy of the folded fields made before they were named by id still sends
+        // them by place (mpn[]): a list, which a field named by id never is (no id is 0).
+        $mpnsByPlace = array_is_list($mpns);
+        $manufacturerBrandsByPlace = array_is_list($manufacturerBrands);
         $onsale = $form->all('onsale');
         $isnew = $form->all('isnew');
         // A grid copy made before the visibility boxes existed sends no marker: leave the visibility as it is.
@@ -846,30 +862,32 @@ final class ProductAdvancedController
 
         $unpriced = [];
         $invalidStockSettings = [];
-        foreach ($ids as $index => $rawId) {
+        foreach ($ids as $place => $rawId) {
             $pseId = (int) $rawId;
             // An id the page did not render for this product is not written through it.
             if (!isset($combinationIds[$pseId])) {
                 continue;
             }
 
+            $reference = $refs[$pseId] ?? null;
+
             // A setting that is not valid costs its own row only, like a missing price.
             $stockSettings = StockSettingsSubmission::fromInput(
-                $outOfStockPolicies[$index] ?? null,
-                $preorderLimits[$index] ?? null,
-                $restockDates[$index] ?? null,
-                $lowStockThresholds[$index] ?? null,
+                $outOfStockPolicies[$pseId] ?? null,
+                $preorderLimits[$pseId] ?? null,
+                $restockDates[$pseId] ?? null,
+                $lowStockThresholds[$pseId] ?? null,
             );
             if (!$stockSettings->isValid()) {
-                $invalidStockSettings[] = $this->referenceOf($refs[$index] ?? null, $pseId);
+                $invalidStockSettings[] = $this->referenceOf($reference, $pseId);
                 continue;
             }
 
             $storedPrice = $this->storedPrice($pseId, $currency);
             // A combination without any price, sent with an empty one, is left as it
             // is: the other combinations of the grid are saved, and the notice names it.
-            if ($this->savesAFreePrice($prices[$index] ?? null, $storedPrice)) {
-                $unpriced[] = $this->referenceOf($refs[$index] ?? null, $pseId);
+            if ($this->savesAFreePrice($prices[$pseId] ?? null, $storedPrice)) {
+                $unpriced[] = $this->referenceOf($reference, $pseId);
                 continue;
             }
 
@@ -877,24 +895,27 @@ final class ProductAdvancedController
             try {
                 $quantityRule = $ruleForEveryRow ?? $this->quantityRules->fromGrid($form, $pseId);
             } catch (InvalidQuantityRuleException|UnreadableQuantityException|UnknownUnitCodeException $refusal) {
-                $this->identifierNotices->refusedRow($this->referenceOf($refs[$index] ?? null, $pseId), $refusal);
+                $this->identifierNotices->refusedRow($this->referenceOf($reference, $pseId), $refusal);
                 continue;
             }
 
+            $mpn = $mpns[$mpnsByPlace ? $place : $pseId] ?? null;
+            $manufacturerBrand = $manufacturerBrands[$manufacturerBrandsByPlace ? $place : $pseId] ?? null;
+
             $event = new ProductSaleElementUpdateEvent($product, $pseId);
             $event
-                ->setReference((string) ($refs[$index] ?? ''))
-                ->setPrice($this->submittedOrStored($prices[$index] ?? null, $storedPrice?->getPrice()))
+                ->setReference((string) ($this->postedOrStored($refs, $pseId, static fn (ProductSaleElements $stored): ?string => $stored->getRef()) ?? ''))
+                ->setPrice($this->submittedOrStored($prices[$pseId] ?? null, $storedPrice?->getPrice()))
                 ->setCurrencyId($currency)
-                ->setWeight((float) ($weights[$index] ?? 0))
-                ->setQuantity((float) ($quantities[$index] ?? 0))
-                ->setSalePrice($this->submittedOrStored($salePrices[$index] ?? null, $storedPrice?->getPromoPrice()))
-                ->setOnsale(isset($onsale[$index]) ? 1 : 0)
-                ->setIsnew(isset($isnew[$index]) ? 1 : 0)
+                ->setWeight((float) ($this->postedOrStored($weights, $pseId, static fn (ProductSaleElements $stored): float => (float) $stored->getWeight()) ?? 0))
+                ->setQuantity((float) ($this->postedOrStored($quantities, $pseId, static fn (ProductSaleElements $stored): float => (float) $stored->getQuantity()) ?? 0))
+                ->setSalePrice($this->submittedOrStored($salePrices[$pseId] ?? null, $storedPrice?->getPromoPrice()))
+                ->setOnsale(isset($onsale[$pseId]) ? 1 : 0)
+                ->setIsnew(isset($isnew[$pseId]) ? 1 : 0)
                 ->setIsdefault($defaultPse === $pseId)
-                ->setEanCode((string) ($eans[$index] ?? ''))
-                ->setMpn(isset($mpns[$index]) ? (string) $mpns[$index] : null)
-                ->setManufacturerBrandId(isset($manufacturerBrands[$index]) ? (int) $manufacturerBrands[$index] : null)
+                ->setEanCode((string) ($this->postedOrStored($eans, $pseId, static fn (ProductSaleElements $stored): ?string => $stored->getEanCode()) ?? ''))
+                ->setMpn($mpn !== null ? (string) $mpn : null)
+                ->setManufacturerBrandId($manufacturerBrand !== null ? (int) $manufacturerBrand : null)
                 ->setQuantityRule($quantityRule)
                 ->setTaxRuleId($taxRule)
                 ->setFromDefaultCurrency($useExchangeRate);
@@ -905,14 +926,14 @@ final class ProductAdvancedController
             try {
                 $events->dispatch($event, TheliaEvents::PRODUCT_UPDATE_PRODUCT_SALE_ELEMENT);
                 if ($sendsVisibility) {
-                    $this->showOrHide($productId, $pseId, isset($visible[$index]), $events);
+                    $this->showOrHide($productId, $pseId, isset($visible[$pseId]), $events);
                 }
                 $saved[] = $pseId;
             } catch (InvalidGtinException|InvalidMpnException $refusal) {
                 $this->identifierNotices->refused($refusal);
             } catch (QuantityRefusedException|UnreadableQuantityException $refusal) {
                 // A stock with more decimals than the combination is now sold with.
-                $this->identifierNotices->refusedRow($this->referenceOf($refs[$index] ?? null, $pseId), $refusal);
+                $this->identifierNotices->refusedRow($this->referenceOf($reference, $pseId), $refusal);
             }
         }
 
@@ -1506,6 +1527,25 @@ final class ProductAdvancedController
     }
 
     /**
+     * The value posted for a combination; a forged array in its place keeps the stored one rather
+     * than writing "Array" or 1.0. Null when nothing is posted for it, as before.
+     *
+     * @param array<mixed>                                       $posted
+     * @param \Closure(ProductSaleElements): (string|float|null) $stored
+     */
+    private function postedOrStored(array $posted, int $pseId, \Closure $stored): string|float|int|bool|null
+    {
+        $value = $posted[$pseId] ?? null;
+        if (null === $value || \is_scalar($value)) {
+            return $value;
+        }
+
+        $saleElement = ProductSaleElementsQuery::create()->findPk($pseId);
+
+        return null === $saleElement ? null : $stored($saleElement);
+    }
+
+    /**
      * An amount left empty keeps the stored one: a price of 0 is saved only when
      * 0 is typed.
      */
@@ -1523,6 +1563,37 @@ final class ProductAdvancedController
         $reference = \is_scalar($submittedReference) ? trim((string) $submittedReference) : '';
 
         return $reference !== '' ? $reference : '#'.$pseId;
+    }
+
+    /**
+     * Only mpn[] and manufacturer_brand_id[] are still read by place, from an older copy of the fold.
+     *
+     * @param ParameterBag<string, mixed> $form
+     */
+    private function postsGridFieldsByPlace(ParameterBag $form): bool
+    {
+        foreach (['reference', 'price', 'weight', 'quantity', 'sale_price', 'ean_code'] as $field) {
+            $posted = $form->all($field);
+            if ($posted !== [] && array_is_list($posted)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function noticeGridPostedByPlace(Request $request): void
+    {
+        if (!$request->hasSession()) {
+            return;
+        }
+
+        $session = $request->getSession();
+        if ($session instanceof FlashBagAwareSessionInterface) {
+            $session->getFlashBag()->add('danger', $this->translator->trans(
+                'Nothing was saved: this copy of the grid names its fields by their place (quantity[]), and the grid reads them by combination (quantity[12]).',
+            ));
+        }
     }
 
     /**

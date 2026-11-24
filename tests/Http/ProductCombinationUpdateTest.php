@@ -82,8 +82,8 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         $this->client->request('GET', self::COMBINATIONS_URL, [
             'product_id' => $product->getId(),
             'product_sale_element_id' => [$pse->getId()],
-            'quantity' => [0],
-            'price' => [0.01],
+            'quantity' => [$pse->getId() => 0],
+            'price' => [$pse->getId() => 0.01],
         ]);
 
         $this->assertNotSaved();
@@ -99,16 +99,16 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         $this->client->request('POST', self::COMBINATIONS_URL, [
             'product_id' => $product->getId(),
             'product_sale_element_id' => [$pse->getId()],
-            'quantity' => [0],
-            'price' => [0.01],
+            'quantity' => [$pse->getId() => 0],
+            'price' => [$pse->getId() => 0.01],
         ]);
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
 
         $this->client->request('POST', self::COMBINATIONS_URL.'?_token='.$token, [
             'product_id' => $product->getId(),
             'product_sale_element_id' => [$pse->getId()],
-            'quantity' => [0],
-            'price' => [0.01],
+            'quantity' => [$pse->getId() => 0],
+            'price' => [$pse->getId() => 0.01],
         ]);
         self::assertSame(403, $this->client->getResponse()->getStatusCode(), 'The token is read from the form body only.');
 
@@ -125,9 +125,9 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             'product_id' => $product->getId(),
             'tax_rule' => $product->getTaxRuleId(),
             'product_sale_element_id' => [$pse->getId()],
-            'reference' => [$pse->getRef()],
-            'quantity' => [42],
-            'weight' => [1.5],
+            'reference' => [$pse->getId() => $pse->getRef()],
+            'quantity' => [$pse->getId() => 42],
+            'weight' => [$pse->getId() => 1.5],
         ]);
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
@@ -159,8 +159,8 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             'product_id' => $product->getId(),
             'tax_rule' => $otherRule->getId(),
             'product_sale_element_id' => [$pse->getId()],
-            'reference' => [$pse->getRef()],
-            'quantity' => [7],
+            'reference' => [$pse->getId() => $pse->getRef()],
+            'quantity' => [$pse->getId() => 7],
         ]);
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
@@ -183,10 +183,10 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             'product_id' => $product->getId(),
             'tax_rule' => $otherRule->getId(),
             'product_sale_element_id' => [$unpriced->getId()],
-            'reference' => [$unpriced->getRef()],
-            'quantity' => [9],
-            'price' => [''],
-            'sale_price' => [''],
+            'reference' => [$unpriced->getId() => $unpriced->getRef()],
+            'quantity' => [$unpriced->getId() => 9],
+            'price' => [$unpriced->getId() => ''],
+            'sale_price' => [$unpriced->getId() => ''],
         ]);
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
@@ -210,11 +210,11 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             'tax_rule' => $product->getTaxRuleId(),
             'currency' => $dollar->getId(),
             'product_sale_element_id' => [$pse->getId()],
-            'reference' => [$pse->getRef()],
-            'quantity' => [42],
-            'price' => ['30'],
-            'sale_price' => ['0'],
-            'weight' => [1.5],
+            'reference' => [$pse->getId() => $pse->getRef()],
+            'quantity' => [$pse->getId() => 42],
+            'price' => [$pse->getId() => '30'],
+            'sale_price' => [$pse->getId() => '0'],
+            'weight' => [$pse->getId() => 1.5],
         ]);
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
@@ -238,11 +238,11 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             'product_id' => $product->getId(),
             'tax_rule' => $product->getTaxRuleId(),
             'product_sale_element_id' => [$pse->getId()],
-            'reference' => [$pse->getRef()],
-            'quantity' => [42],
-            'price' => [''],
-            'sale_price' => [''],
-            'weight' => [1.5],
+            'reference' => [$pse->getId() => $pse->getRef()],
+            'quantity' => [$pse->getId() => 42],
+            'price' => [$pse->getId() => ''],
+            'sale_price' => [$pse->getId() => ''],
+            'weight' => [$pse->getId() => 1.5],
         ]);
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
@@ -262,11 +262,11 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             'product_id' => $product->getId(),
             'tax_rule' => $product->getTaxRuleId(),
             'product_sale_element_id' => [$pse->getId()],
-            'reference' => [$pse->getRef()],
-            'quantity' => [42],
-            'price' => ['0'],
-            'sale_price' => ['0'],
-            'weight' => [1.5],
+            'reference' => [$pse->getId() => $pse->getRef()],
+            'quantity' => [$pse->getId() => 42],
+            'price' => [$pse->getId() => '0'],
+            'sale_price' => [$pse->getId() => '0'],
+            'weight' => [$pse->getId() => 1.5],
         ]);
 
         self::assertSame(0.0, (float) $this->storedPrice($pse)->getPrice(), 'A price of 0 is saved when 0 is typed.');
@@ -290,7 +290,7 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         [$product, $pse] = $this->productWithACombination();
         $pse->setVisible(0)->save($this->getPropelConnection());
 
-        $this->client->request('POST', self::COMBINATIONS_URL, $this->gridOf($product, $pse) + ['visible_sent' => 1, 'visible' => [0 => 1]]);
+        $this->client->request('POST', self::COMBINATIONS_URL, $this->gridOf($product, $pse) + ['visible_sent' => 1, 'visible' => [$pse->getId() => 1]]);
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         self::assertTrue((bool) $this->freshSaleElement($pse)->getVisible(), 'A ticked box shows the combination.');
@@ -319,8 +319,8 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
 
         $form = $crawler->filter('form[data-testid="combinations-form"]');
         self::assertCount(1, $form->filter('input[name="visible_sent"]'), 'The grid says it sends its visibility boxes.');
-        $box = $form->filter(\sprintf('tbody[data-testid="combinations-row-%d"] input[type="checkbox"][name="visible[0]"]', $pse->getId()));
-        self::assertCount(1, $box, 'The visibility is a box of the row, indexed like the other boxes.');
+        $box = $form->filter(\sprintf('tbody[data-testid="combinations-row-%d"] input[type="checkbox"][name="visible[%d]"]', $pse->getId(), $pse->getId()));
+        self::assertCount(1, $box, 'The visibility is a box of the row, named by its combination like every field.');
         self::assertNull($box->attr('checked'), 'A hidden combination shows its box unticked.');
     }
 
@@ -409,7 +409,7 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             self::assertCount(1, $target, 'The row has the field the panel fills: '.$name);
             self::assertNull($target->attr('form'), 'The field of the row is sent with the grid: '.$name);
         }
-        self::assertSame('manufacturer_brand_id[]', $row->filter('[data-bulk-field="brand"]')->attr('name'));
+        self::assertSame(\sprintf('manufacturer_brand_id[%d]', $pse->getId()), $row->filter('[data-bulk-field="brand"]')->attr('name'));
         self::assertSame(
             $row->filter('[data-bulk-field="brand"] option')->each(static fn (Crawler $option): string => (string) $option->attr('value')),
             \array_slice($bulkForm->filter('[data-bulk-field="brand"] option')->each(static fn (Crawler $option): string => (string) $option->attr('value')), 1),
@@ -507,10 +507,10 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
 
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
-        $unpricedInput = $crawler->filter(\sprintf('tbody[data-testid="combinations-row-%d"] input[name="price[]"]', $unpriced->getId()));
+        $unpricedInput = $crawler->filter(\sprintf('tbody[data-testid="combinations-row-%d"] input[name^="price["]', $unpriced->getId()));
         self::assertSame('', $unpricedInput->attr('value'), 'A combination without any price shows an empty price, not 0.');
         self::assertNotNull($unpricedInput->attr('required'), 'The browser asks for the missing price before submitting.');
-        $pricedInput = $crawler->filter(\sprintf('tbody[data-testid="combinations-row-%d"] input[name="price[]"]', $pse->getId()));
+        $pricedInput = $crawler->filter(\sprintf('tbody[data-testid="combinations-row-%d"] input[name^="price["]', $pse->getId()));
         self::assertSame('25', $pricedInput->attr('value'));
         self::assertNull($pricedInput->attr('required'), 'A priced combination is shown as before.');
     }
@@ -527,11 +527,11 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             'tax_rule' => $product->getTaxRuleId(),
             'default_pse' => $pse->getId(),
             'product_sale_element_id' => [$pse->getId(), $unpriced->getId()],
-            'reference' => [$pse->getRef(), $unpriced->getRef()],
-            'quantity' => [42, 9],
-            'price' => ['25', ''],
-            'sale_price' => ['20', ''],
-            'weight' => [1.5, 0],
+            'reference' => [$pse->getId() => $pse->getRef(), $unpriced->getId() => $unpriced->getRef()],
+            'quantity' => [$pse->getId() => 42, $unpriced->getId() => 9],
+            'price' => [$pse->getId() => '25', $unpriced->getId() => ''],
+            'sale_price' => [$pse->getId() => '20', $unpriced->getId() => ''],
+            'weight' => [$pse->getId() => 1.5, $unpriced->getId() => 0],
         ]);
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
@@ -559,11 +559,11 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             'tax_rule' => $product->getTaxRuleId(),
             'default_pse' => $pse->getId(),
             'product_sale_element_id' => [$pse->getId(), $unpriced->getId()],
-            'reference' => [$pse->getRef(), $unpriced->getRef()],
-            'quantity' => [42, 3],
-            'price' => ['25', '12.5'],
-            'sale_price' => ['20', ''],
-            'weight' => [1.5, 0],
+            'reference' => [$pse->getId() => $pse->getRef(), $unpriced->getId() => $unpriced->getRef()],
+            'quantity' => [$pse->getId() => 42, $unpriced->getId() => 3],
+            'price' => [$pse->getId() => '25', $unpriced->getId() => '12.5'],
+            'sale_price' => [$pse->getId() => '20', $unpriced->getId() => ''],
+            'weight' => [$pse->getId() => 1.5, $unpriced->getId() => 0],
         ]);
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
@@ -679,9 +679,9 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             'tax_rule' => $product->getTaxRuleId(),
             'default_pse' => $pse->getId(),
             'product_sale_element_id' => [$pse->getId()],
-            'reference' => [$pse->getRef()],
-            'quantity' => [7],
-            'weight' => [0],
+            'reference' => [$pse->getId() => $pse->getRef()],
+            'quantity' => [$pse->getId() => 7],
+            'weight' => [$pse->getId() => 0],
         ];
     }
 

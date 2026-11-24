@@ -274,13 +274,15 @@ The two hooks that were already there keep their contract, which is not a column
 
 The other fields of a combination, folded under it, come from `catalog/product/_combination_more_fields.html.twig`. A
 theme or a project that overrides the back office adds its fields there, in a copy of that file, without copying the
-whole tab.
+whole tab. Every field of the grid is named by its combination (`mpn[12]`); a copy made when the part number and the
+manufacturer were still named by their place (`mpn[]`, `manufacturer_brand_id[]`) is still read, by place, for these
+two fields only.
 
 What a module adds to the grid is sent with it. The theme does not save it: the module listens to
 `TheliaEvents::PRODUCT_UPDATE_PRODUCT_SALE_ELEMENT`, dispatched for each combination the grid saves (not for one left
 without a price), and reads its fields from the current request (`RequestStack`): the event does not carry them. It
-names them by the combination (`mymodule_stock[12]`), **never by `idx`**, their place in the grid: dragging the
-combinations renumbers only the fields of the grid itself.
+names them by the combination (`mymodule_stock[12]`), as the grid names its own, **never by `idx`**, their place in
+the grid, which dragging the combinations changes without renaming anything.
 
 ```php
 public function onCombinationsTableRow(HookRenderEvent $event): void

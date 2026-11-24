@@ -18,7 +18,7 @@ const PRICE_PAIRS = {
  *       <form class="grid" data-controller="bo-pse-price-with-tax">
  *           <table data-controller="bo-sortable" data-bo-combinations-bulk-edit-target="sortable">
  *               <input type="checkbox" form="bulk" data-bo-bulk-select-target="row"> (outside the grid form: not sent nor reset with it)
- *               <input name="quantity[]" data-bulk-field="quantity">
+ *               <input name="quantity[12]" data-bulk-field="quantity">
  *       <dialog data-bo-combinations-bulk-edit-target="panel" data-action="close->bo-combinations-bulk-edit#closed">
  *           <form id="bulk" data-action="submit->bo-combinations-bulk-edit#apply">
  *               <input type="number" data-bulk-field="quantity" data-bo-combinations-bulk-edit-target="field">

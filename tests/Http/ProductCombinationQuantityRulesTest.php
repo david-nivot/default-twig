@@ -350,8 +350,8 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
             '_token' => $gridToken,
             'product_id' => $product->getId(),
             'product_sale_element_id' => [$source->getId()],
-            'reference' => [$source->getRef()],
-            'quantity' => [7],
+            'reference' => [$source->getId() => $source->getRef()],
+            'quantity' => [$source->getId() => 7],
             'quantity_step' => [$source->getId() => '6'],
             'quantity_rules_source' => $source->getId(),
         ];
@@ -446,8 +446,8 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
     }
 
     /**
-     * Posts the grid as the page posts it: the columns of the grid as parallel arrays, the
-     * quantity rules keyed by the id of their combination. A row given null posts no rule.
+     * Posts the grid as the page posts it: every field named by the id of its combination.
+     * A row given null posts no rule.
      *
      * @param list<array{ProductSaleElements, array<string, mixed>|null}> $rows
      * @param array<string, mixed>                                        $extra
@@ -464,11 +464,11 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
         foreach ($rows as [$pse, $values]) {
             $id = (int) $pse->getId();
             $payload['product_sale_element_id'][] = $id;
-            $payload['reference'][] = $pse->getRef();
-            $payload['quantity'][] = $values['quantity'] ?? $pse->getQuantity();
-            $payload['ean_code'][] = '';
-            $payload['mpn'][] = '';
-            $payload['manufacturer_brand_id'][] = 0;
+            $payload['reference'][$id] = $pse->getRef();
+            $payload['quantity'][$id] = $values['quantity'] ?? $pse->getQuantity();
+            $payload['ean_code'][$id] = '';
+            $payload['mpn'][$id] = '';
+            $payload['manufacturer_brand_id'][$id] = 0;
 
             if ($values === null) {
                 continue;

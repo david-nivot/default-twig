@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use BackOfficeDefaultTwigBundle\Tests\Support\CombinationGridFields;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Domain\Catalog\Stock\OutOfStockPolicy;
@@ -266,12 +267,12 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
         $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
 
         $row = \sprintf('tbody[data-testid="combinations-row-%d"]', $pse->getId());
-        $options = $crawler->filter($row.' select[name="out_of_stock_policy[]"] option');
+        $options = $crawler->filter($row.' select[name^="out_of_stock_policy["] option');
         self::assertSame(['0', '1', '2'], $options->each(static fn ($option): string => (string) $option->attr('value')));
-        self::assertSame('2', $crawler->filter($row.' select[name="out_of_stock_policy[]"] option[selected]')->attr('value'));
-        self::assertSame('10', $crawler->filter($row.' input[name="preorder_limit[]"]')->attr('value'));
-        self::assertSame('2031-03-15', $crawler->filter($row.' input[name="restock_date[]"]')->attr('value'));
-        $threshold = $crawler->filter($row.' input[name="low_stock_threshold[]"]');
+        self::assertSame('2', $crawler->filter($row.' select[name^="out_of_stock_policy["] option[selected]')->attr('value'));
+        self::assertSame('10', $crawler->filter($row.' input[name^="preorder_limit["]')->attr('value'));
+        self::assertSame('2031-03-15', $crawler->filter($row.' input[name^="restock_date["]')->attr('value'));
+        $threshold = $crawler->filter($row.' input[name^="low_stock_threshold["]');
         self::assertSame('', $threshold->attr('value'), 'An inherited threshold is shown empty.');
         self::assertSame('20', $threshold->attr('placeholder'), 'The placeholder is the threshold of the shop.');
     }
@@ -290,7 +291,7 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
             $grid = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
             $cell = $grid->filter(\sprintf('tbody[data-testid="combinations-row-%d"] td.bo-combinations-grid__identity [data-testid="combinations-stock-fields-%d"] div[data-controller="bo-stock-policy"]', $pse->getId(), $pse->getId()));
             self::assertSame($limited, $cell->attr('data-bo-stock-policy-limited-value'), 'the grid hands the controller the value of the limited mode');
-            self::assertSame($hidden, str_contains((string) $cell->filter('input[name="preorder_limit[]"]')->attr('class'), 'd-none'));
+            self::assertSame($hidden, str_contains((string) $cell->filter('input[name^="preorder_limit["]')->attr('class'), 'd-none'));
 
             $form = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$withoutCombination->getId());
             $block = $form->filter('form[data-testid="default-pse-form"] [data-controller="bo-stock-policy"]');
@@ -308,7 +309,7 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
 
         $row = \sprintf('tbody[data-testid="combinations-row-%d"]', $pse->getId());
         foreach (['out_of_stock_policy', 'preorder_limit', 'restock_date', 'low_stock_threshold'] as $field) {
-            $in = static fn (string $scope): string => \sprintf('%1$s %2$s input[name="%3$s[]"], %1$s %2$s select[name="%3$s[]"]', $row, $scope, $field);
+            $in = static fn (string $scope): string => \sprintf('%1$s %2$s input[name^="%3$s["], %1$s %2$s select[name^="%3$s["]', $row, $scope, $field);
             self::assertCount(1, $crawler->filter($in('tr')), $field.' is rendered once in the grid');
             self::assertCount(0, $crawler->filter($in('tr[hidden]')), $field.' is not in the folded fields');
             self::assertCount(1, $crawler->filter($in('tr:not([hidden]) td.bo-combinations-grid__identity')), $field.' is in the line of the name of the combination');
@@ -334,10 +335,10 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
 
         $form = $crawler->filter('form[data-testid="combinations-form"]')->form();
         $form->setValues([
-            'out_of_stock_policy' => ['1', '2'],
-            'preorder_limit' => ['', '15'],
-            'restock_date' => ['2031-01-10', '2032-02-20'],
-            'low_stock_threshold' => ['4', '9.5'],
+            'out_of_stock_policy' => [$second->getId() => '1', $first->getId() => '2'],
+            'preorder_limit' => [$second->getId() => '', $first->getId() => '15'],
+            'restock_date' => [$second->getId() => '2031-01-10', $first->getId() => '2032-02-20'],
+            'low_stock_threshold' => [$second->getId() => '4', $first->getId() => '9.5'],
         ]);
         $this->client->submit($form);
 
@@ -371,21 +372,26 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
 
     /**
      * @param list<ProductSaleElements>   $pses
-     * @param array<string, list<string>> $settings
+     * @param array<string, list<string>> $settings by place of the combination in $pses
      * @param list<string>|null           $prices
      */
     private function postGrid(Product $product, array $pses, array $settings, ?array $prices = null): void
     {
+        $rows = [];
+        foreach ($pses as $place => $pse) {
+            $values = ['reference' => (string) $pse->getRef(), 'quantity' => (float) $pse->getQuantity(), 'price' => $prices[$place] ?? '25'];
+            foreach ($settings as $name => $byPlace) {
+                $values[$name] = $byPlace[$place];
+            }
+            $rows[] = [$pse, $values];
+        }
+
         $this->client->request('POST', self::COMBINATIONS_URL, [
             '_token' => $this->tokenOf($product, 'combinations-form'),
             'product_id' => $product->getId(),
             'tax_rule' => $product->getTaxRuleId(),
             'default_pse' => $pses[0]->getId(),
-            'product_sale_element_id' => array_map(static fn (ProductSaleElements $pse): int => (int) $pse->getId(), $pses),
-            'reference' => array_map(static fn (ProductSaleElements $pse): string => (string) $pse->getRef(), $pses),
-            'quantity' => array_map(static fn (ProductSaleElements $pse): float => (float) $pse->getQuantity(), $pses),
-            'price' => $prices ?? array_map(static fn (): string => '25', $pses),
-        ] + $settings);
+        ] + CombinationGridFields::of($rows));
     }
 
     /**

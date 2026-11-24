@@ -196,8 +196,8 @@ final class ProductCombinationGridExtensionTest extends WebIntegrationTestCase
         [$product, $combination] = $this->productWithACombination();
 
         $folded = $this->tab($product)->filter(\sprintf('tr[data-testid="combinations-more-%d"] .bo-combinations-grid__more-fields', $combination->getId()));
-        self::assertCount(1, $folded->filter('input[name="mpn[]"]'));
-        self::assertCount(1, $folded->filter('select[name="manufacturer_brand_id[]"]'));
+        self::assertCount(1, $folded->filter(\sprintf('input[name="mpn[%d]"]', $combination->getId())));
+        self::assertCount(1, $folded->filter(\sprintf('select[name="manufacturer_brand_id[%d]"]', $combination->getId())));
 
         // An override is a copy of the template: it renders with what the tab hands it, nothing else.
         $html = $this->getService(Environment::class)->render('@BackOfficeDefaultTwig/catalog/product/_combination_more_fields.html.twig', [
