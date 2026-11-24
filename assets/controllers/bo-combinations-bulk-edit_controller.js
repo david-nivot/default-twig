@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+const NONE = '__none';
+
 const PRICE_PAIRS = {
     price: ['price-incl', 'untaxed_to_taxed'],
     'price-incl': ['price', 'taxed_to_untaxed'],
@@ -10,7 +12,9 @@ const PRICE_PAIRS = {
 /**
  * Bulk edit of the combinations grid: a side panel fills the fields of the ticked combinations, then
  * closes. Nothing is saved, the grid's save bar does that. Row fields get a `change` event, never
- * `input`, which would have the price controller convert the row again on submit.
+ * `input`, which would have the price controller convert the row again on submit. An empty field
+ * of the panel leaves the rows as they are: a value the rows may hold empty (no unit) is chosen in
+ * the panel as `__none`.
  *
  * Usage:
  *   <div data-controller="bo-bulk-select bo-combinations-bulk-edit"
@@ -159,7 +163,7 @@ export default class extends Controller {
 
         const values = this.fieldTargets
             .filter((field) => field.value.trim() !== '')
-            .map((field) => [field.dataset.bulkField, field.value.trim()]);
+            .map((field) => [field.dataset.bulkField, field.value.trim() === NONE ? '' : field.value.trim()]);
         if (values.length === 0) {
             return;
         }

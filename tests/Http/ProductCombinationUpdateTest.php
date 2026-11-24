@@ -344,6 +344,30 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         self::assertCount(1, $bar->filter('button[type="reset"][data-testid="combinations-discard"]'), 'The changes of the grid can be cancelled from its save bar.');
     }
 
+    public function testAFieldOfTheBulkPanelRefusesWhatTheFieldOfTheLineRefuses(): void
+    {
+        $this->loginFullAdmin();
+        [$product, $pse] = $this->productWithACombination();
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+
+        $row = $crawler->filter(\sprintf('tbody[data-testid="combinations-row-%d"]', $pse->getId()));
+        $panel = $crawler->filter('[data-testid="combinations-bulk-panel"]');
+        $compared = 0;
+        foreach ($row->filter('input[data-bulk-field]') as $line) {
+            $name = $line->getAttribute('data-bulk-field');
+            $bulk = $panel->filter(\sprintf('input[data-bulk-field="%s"]', $name));
+            if (0 === $bulk->count()) {
+                continue;
+            }
+            // A bulk value the line refuses would leave a folded field invalid: the form then refuses to send, silently.
+            foreach (['min', 'max'] as $constraint) {
+                self::assertSame($line->getAttribute($constraint), (string) $bulk->attr($constraint), $name.': '.$constraint);
+            }
+            ++$compared;
+        }
+        self::assertGreaterThan(5, $compared);
+    }
+
     public function testABulkEditModePutsABoxInPlaceOfEachHandleAndOpensAPanelThatIsNeverSent(): void
     {
         $this->loginFullAdmin();
@@ -398,7 +422,14 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
 
         $fields = $bulkForm->filter('[data-bo-combinations-bulk-edit-target="field"]');
         $names = $fields->each(static fn (Crawler $field): string => (string) $field->attr('data-bulk-field'));
-        self::assertSame(['quantity', 'weight', 'price', 'price-incl', 'onsale', 'sale-price', 'sale-price-incl', 'isnew', 'visible', 'brand'], $names);
+        self::assertSame([
+            'price', 'price-incl', 'onsale', 'sale-price', 'sale-price-incl',
+            'quantity', 'weight',
+            'policy', 'preorder-limit', 'threshold', 'restock-date',
+            'unit', 'unit-quantity', 'decimals', 'min-quantity', 'quantity-step', 'reference-quantity',
+            'visible', 'isnew', 'brand',
+        ], $names, 'The panel fills the stock settings and the quantities and units too, grouped as in the fold.');
+        self::assertCount(5, $bulkForm->filter('fieldset.bo-side-panel__section'));
         $fields->each(static function (Crawler $field): void {
             self::assertNull($field->attr('form'), 'A field of the panel belongs to the form of the panel.');
             self::assertNull($field->attr('name'), 'A field of the panel is never sent.');
@@ -416,6 +447,14 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             \array_slice($bulkForm->filter('[data-bulk-field="brand"] option')->each(static fn (Crawler $option): string => (string) $option->attr('value')), 1),
             'The panel offers the brands of a row, after "Unchanged".',
         );
+        $units = $bulkForm->filter('[data-bulk-field="unit"] option')->each(static fn (Crawler $option): string => (string) $option->attr('value'));
+        self::assertSame(['', '__none'], \array_slice($units, 0, 2), '"Unchanged" is empty, "No unit" has a value of its own.');
+        self::assertSame(
+            \array_slice($row->filter('[data-bulk-field="unit"] option')->each(static fn (Crawler $option): string => (string) $option->attr('value')), 1),
+            \array_slice($units, 2),
+            'Then the units of a row.',
+        );
+        self::assertStringContainsString("NONE ? ''", (string) file_get_contents(\dirname(__DIR__, 2).'/assets/controllers/bo-combinations-bulk-edit_controller.js'), '"No unit" empties the unit of the rows.');
     }
 
     public function testTheLeavingModalCanSayThatSeveralTabsAreToBeSavedOneByOne(): void
@@ -434,6 +473,39 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         self::assertCount(1, $several);
         self::assertNotNull($several->attr('hidden'), 'Until several forms are changed, the modal offers to save the one that is.');
         self::assertStringContainsString('Save each tab first', $several->text());
+    }
+
+    public function testTheExchangeRateBoxSitsNextToTheCurrencyAndIsSentWithTheGrid(): void
+    {
+        $this->loginFullAdmin();
+        [$product] = $this->productWithACombination();
+        $other = $this->factory->currency(['code' => 'ZZC', 'symbol' => 'Z', 'rate' => 2.0]);
+
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId().'&currency_id='.$other->getId());
+
+        $box = $crawler->filter('.card-header [data-testid="combinations-use-exchange-rate"]');
+        self::assertCount(1, $box, 'In the header, next to the currency.');
+        self::assertSame('combinations-form', $box->attr('form'), 'Sent with the grid, which it is not in.');
+        self::assertSame('use_exchange_rate', $box->attr('name'));
+        self::assertCount(1, $crawler->filter('form#combinations-form[data-testid="combinations-form"]'));
+        self::assertCount(0, $crawler->filter('form[data-testid="combinations-form"] [name="use_exchange_rate"]'), 'No hidden 0 in the form: sent after the box, it would win over it.');
+
+        $default = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+        self::assertCount(0, $default->filter('[data-testid="combinations-use-exchange-rate"]'), 'Nothing to convert in the default currency.');
+
+        $guard = (string) file_get_contents(\dirname(__DIR__, 2).'/assets/controllers/bo-unsaved-changes_controller.js');
+        self::assertStringContainsString('outsideFieldChanged', $guard, 'A box given to the grid by form= marks it as changed.');
+    }
+
+    public function testTheTaxRuleIsOneNarrowFieldAboveTheGrid(): void
+    {
+        $this->loginFullAdmin();
+        [$product] = $this->productWithACombination();
+
+        $form = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId())->filter('form[data-testid="combinations-form"]');
+
+        self::assertCount(1, $form->filter('.bo-combinations-tax-rule > select[data-testid="combinations-tax-rule"]'));
+        self::assertCount(0, $form->filter('.row [data-testid="combinations-tax-rule"]'));
     }
 
     public function testOneButtonOpensTheFoldOfEveryCombination(): void

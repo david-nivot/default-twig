@@ -11,14 +11,14 @@
         <label class="form-label small mb-1" for="{{ dom_id }}min-quantity">{{ 'Minimum quantity'|trans }}</label>
         <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end"
                id="{{ dom_id }}min-quantity" name="min_quantity{{ key }}" value="{{ rule.min_quantity }}"
-               data-bo-pse-reference-price-target="minQuantity" data-action="change->bo-pse-reference-price#compute"
+               data-bo-pse-reference-price-target="minQuantity" data-bulk-field="min-quantity" data-action="change->bo-pse-reference-price#compute"
                data-testid="quantity-rules-min-{{ rule.id }}">
     </div>
     <div class="bo-quantity-rules__field">
         <label class="form-label small mb-1" for="{{ dom_id }}quantity-step">{{ 'Sold by'|trans }}</label>
         <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end"
                id="{{ dom_id }}quantity-step" name="quantity_step{{ key }}" value="{{ rule.quantity_step }}"
-               data-bo-pse-reference-price-target="quantityStep" data-action="change->bo-pse-reference-price#compute"
+               data-bo-pse-reference-price-target="quantityStep" data-bulk-field="quantity-step" data-action="change->bo-pse-reference-price#compute"
                aria-describedby="{{ dom_id }}quantity-step-help"
                data-testid="quantity-rules-step-{{ rule.id }}">
         <div id="{{ dom_id }}quantity-step-help" class="form-text">{{ 'Every quantity is a multiple of it.'|trans }}</div>
@@ -26,7 +26,7 @@
     <div class="bo-quantity-rules__field">
         <label class="form-label small mb-1" for="{{ dom_id }}quantity-decimals">{{ 'Decimals of a quantity'|trans }}</label>
         <select class="form-select form-select-sm" id="{{ dom_id }}quantity-decimals" name="quantity_decimals{{ key }}"
-                data-bo-pse-reference-price-target="quantityDecimals" data-bo-combination-band-target="decimals" data-action="change->bo-pse-reference-price#compute"
+                data-bo-pse-reference-price-target="quantityDecimals" data-bo-combination-band-target="decimals" data-bulk-field="decimals" data-action="change->bo-pse-reference-price#compute"
                 data-testid="quantity-rules-decimals-{{ rule.id }}">
             {% for decimals in decimals_choices %}
                 <option value="{{ decimals }}"{{ decimals == rule.quantity_decimals ? ' selected' }}>
@@ -38,7 +38,7 @@
     <div class="bo-quantity-rules__field">
         <label class="form-label small mb-1" for="{{ dom_id }}unit-code">{{ 'Unit'|trans }}</label>
         <select class="form-select form-select-sm" id="{{ dom_id }}unit-code" name="unit_code{{ key }}"
-                data-bo-pse-reference-price-target="unitCode" data-bo-combination-band-target="unitCode"
+                data-bo-pse-reference-price-target="unitCode" data-bo-combination-band-target="unitCode" data-bulk-field="unit"
                 data-action="change->bo-pse-reference-price#compute"
                 data-testid="quantity-rules-unit-{{ rule.id }}">
             <option value="">{{ 'No unit'|trans }}</option>
@@ -51,7 +51,7 @@
         <label class="form-label small mb-1" for="{{ dom_id }}unit-quantity">{{ 'Content of one unit sold'|trans }}</label>
         <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end"
                id="{{ dom_id }}unit-quantity" name="unit_quantity{{ key }}" value="{{ rule.unit_quantity }}"
-               data-bo-pse-reference-price-target="unitQuantity"
+               data-bo-pse-reference-price-target="unitQuantity" data-bulk-field="unit-quantity"
                data-action="change->bo-pse-reference-price#compute"
                data-testid="quantity-rules-unit-quantity-{{ rule.id }}">
     </div>
@@ -60,7 +60,7 @@
         <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end"
                id="{{ dom_id }}reference-unit-quantity" name="reference_unit_quantity{{ key }}" value="{{ rule.reference_unit_quantity }}"
                placeholder="1"
-               data-bo-pse-reference-price-target="referenceUnitQuantity"
+               data-bo-pse-reference-price-target="referenceUnitQuantity" data-bulk-field="reference-quantity"
                data-action="change->bo-pse-reference-price#compute"
                data-testid="quantity-rules-reference-quantity-{{ rule.id }}">
     </div>

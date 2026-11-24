@@ -3203,6 +3203,11 @@ tr.bo-order-row--urgent {
     }
 }
 
+// The tax rule above the grid: as wide as a rule's title needs, not half the card.
+.bo-combinations-tax-rule {
+    max-width: 16.25rem;
+}
+
 // A grid wider than the screen scrolls sideways: its folds keep to the visible width and stay in view.
 @supports (width: 1cqi) {
     .bo-combinations-scroll {
@@ -3360,6 +3365,44 @@ form[data-bo-unsaved-changes-dirty] .bo-combinations-savebar {
     padding: 1rem;
     overflow-y: auto;
     overscroll-behavior: contain;
+}
+
+// The fields of a panel grouped by subject, as in the fold of a combination.
+.bo-side-panel__section {
+    min-width: 0;
+    margin: 0 0 .75rem;
+    padding: 0 0 .75rem;
+    border: 0;
+    border-block-end: var(--bs-border-width) solid var(--bs-border-color-translucent);
+
+    // The title runs a little wider than the fields under it.
+    > :not(legend) {
+        padding-inline: .5rem;
+    }
+
+    // A label on two lines keeps the fields of its row on one line.
+    > .row > * {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+    }
+
+    &:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-block-end: 0;
+    }
+
+    > legend {
+        float: none;
+        width: 100%;
+        margin-bottom: .4rem;
+        font-size: .72rem;
+        font-weight: 600;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: var(--bs-emphasis-color);
+    }
 }
 
 // Grey of its own: the theme backgrounds are white (`--bs-secondary-bg` too), as are the fields it lies on.
