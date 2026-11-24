@@ -2821,9 +2821,15 @@ tr.bo-order-row--urgent {
         background-color: var(--bs-gray-200);
     }
 
+    // Darker than the lists, with darker text: the header stands out from the card.
+    > thead > tr > th {
+        --bs-table-bg: #{$gray-200};
+        color: #3a3a3a;
+    }
+
     // The borderless grid dropped the header line of the DataTable lists.
     > thead > tr > th {
-        border-bottom-width: var(--bs-border-width);
+        border-bottom: var(--bs-border-width) solid var(--bs-border-color);
         // High enough for the bulk edit's "select all" box: a cell height is a minimum, the header would grow.
         height: 3rem;
     }
@@ -2849,13 +2855,95 @@ tr.bo-order-row--urgent {
         }
     }
 
+    // The one fold of a combination: three sections side by side, two fields a line in each, stacked on a phone.
+    .bo-combinations-grid__fold {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+        gap: .75rem 1.5rem;
+        padding-block: .6rem .8rem;
+        white-space: normal;
+
+        .bo-combinations-grid__more-fields,
+        .bo-quantity-rules {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .5rem .75rem;
+            padding-block: 0;
+
+            > div {
+                width: auto;
+                min-width: 0;
+            }
+
+            // Label, control, help: rows shared by the fields of a line, so that the controls line up.
+            @supports (grid-template-rows: subgrid) {
+                row-gap: .75rem;
+
+                > div {
+                    display: grid;
+                    grid-row: span 3;
+                    grid-template-rows: subgrid;
+                    row-gap: .35rem;
+
+                    > * {
+                        align-self: start;
+                    }
+
+                    > .form-label {
+                        align-self: end;
+                        margin-bottom: 0;
+                    }
+                }
+            }
+        }
+
+        // The policy and its limit take the whole section: the longest wording has to be readable.
+        .bo-combinations-grid__more-fields > div.bo-combinations-grid__stock-policy,
+        .bo-quantity-rules__note {
+            grid-column: 1 / -1;
+        }
+    }
+
+    .bo-combinations-grid__fold-section {
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+
+        // The title and its line run a little wider than the fields under them.
+        > :not(legend) {
+            padding-inline: .5rem;
+        }
+
+        > legend {
+            float: none;
+            width: 100%;
+            margin-bottom: .5rem;
+            padding-block-end: .25rem;
+            border-block-end: var(--bs-border-width) solid var(--bs-border-color);
+            font-size: .72rem;
+            font-weight: 600;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            color: var(--bs-emphasis-color);
+        }
+    }
+
+    // The lines product.combinations-row adds come after the fold: shown and hidden with it.
+    > tbody:has(> tr.bo-combinations-grid__fold-line[hidden]) > tr.bo-combinations-grid__module-lines,
+    > tbody:has(> tr.bo-combinations-grid__fold-line[hidden]) > tr.bo-combinations-grid__module-lines ~ tr:not(.bo-combinations-grid__band-end) {
+        display: none;
+    }
+
     // Separator between combinations only; the first and last are transparent so that a drop there draws its line.
     > tbody > tr:first-child > td {
         border-block-start: 2px solid transparent;
     }
 
+    // The header line; 2px only where a drag lands.
     > tbody + tbody > tr:first-child > td {
-        border-block-start-color: var(--bs-secondary-border-subtle);
+        border-block-start-width: var(--bs-border-width);
+        border-block-start-color: var(--bs-border-color);
     }
 
     > tbody:last-of-type > tr.bo-combinations-grid__band-end > td {
@@ -2892,7 +2980,8 @@ tr.bo-order-row--urgent {
         --bo-promo-padding: .35rem;
         vertical-align: middle;
         padding-block: var(--bo-promo-padding);
-        background-color: var(--bs-gray-200);
+        // Lighter than the header of the grid.
+        background-color: #{mix($gray-100, $gray-200)};
         transition: background-color .15s ease;
 
         @media (prefers-reduced-motion: reduce) {
@@ -2900,7 +2989,7 @@ tr.bo-order-row--urgent {
         }
 
         .form-control[readonly] {
-            background-color: var(--bs-gray-100);
+            background-color: var(--bs-secondary-bg);
             color: var(--bs-secondary-color);
         }
     }
@@ -2985,6 +3074,7 @@ tr.bo-order-row--urgent {
     // The separator on the side where the drag lands takes the color, not a line inside the fields.
     > tbody.bo-sortable-target:not(.bo-sortable-target--after) > tr:first-child > td,
     > tbody.bo-sortable-target--after + tbody > tr:first-child > td {
+        border-block-start-width: 2px;
         border-block-start-color: var(--bs-primary);
     }
 
@@ -3011,6 +3101,20 @@ tr.bo-order-row--urgent {
         > tr > td {
             opacity: .3;
         }
+    }
+}
+
+// A grid wider than the screen scrolls sideways: its folds keep to the visible width and stay in view.
+@supports (width: 1cqi) {
+    .bo-combinations-scroll {
+        container-type: inline-size;
+    }
+
+    .bo-combinations-scroll .bo-combinations-grid__fold {
+        position: sticky;
+        inset-inline-start: 0;
+        // Less the handle column the fold starts after.
+        max-width: calc(100cqi - 3rem);
     }
 }
 
@@ -3205,13 +3309,21 @@ form[data-bo-unsaved-changes-dirty] .bo-combinations-savebar {
     transform: translateX(-100%);
 }
 
-// The quantity rules of a combination, in its row's panel and in the default
+// The quantity rules of a combination, in the fold of its line and in the default
 // combination's card: fields wide enough for "0,125" or a unit's name, wrapping
 // on a phone instead of widening the grid.
 .bo-quantity-rules {
-    // The panel sits in a grid cell, which keeps its text on one line: a label
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 1.5rem;
+    row-gap: .5rem;
+    // The fold sits in a grid cell, which keeps its text on one line: a label
     // longer than its field would run over the next one.
     white-space: normal;
+}
+
+.bo-quantity-rules__note {
+    width: 100%;
 }
 
 .bo-quantity-rules__field {

@@ -351,7 +351,7 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         $crawler = $this->client->request('GET', '/admin/products/update?product_id='.$product->getId().'&current_tab=pse');
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
 
-        $area = $crawler->filter('[data-testid="product-combinations-section"][data-controller="bo-bulk-select bo-combinations-bulk-edit"]');
+        $area = $crawler->filter('[data-testid="product-combinations-section"][data-controller~="bo-bulk-select"][data-controller~="bo-combinations-bulk-edit"]');
         self::assertCount(1, $area, 'The card holds the button, the boxes and the panel.');
         self::assertSame("form[data-testid='combinations-form']", $area->attr('data-bo-combinations-bulk-edit-bo-pse-price-with-tax-outlet'), 'The panel converts its prices with the controller of the grid.');
         self::assertSame('bo-combinations-card--bulk', $area->attr('data-bo-combinations-bulk-edit-active-class'));
@@ -433,6 +433,25 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         self::assertCount(1, $several);
         self::assertNotNull($several->attr('hidden'), 'Until several forms are changed, the modal offers to save the one that is.');
         self::assertStringContainsString('Save each tab first', $several->text());
+    }
+
+    public function testOneButtonOpensTheFoldOfEveryCombination(): void
+    {
+        $this->loginFullAdmin();
+        [$product] = $this->productWithACombination();
+        [$simple] = $this->productWithoutCombination();
+
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+
+        self::assertStringContainsString('bo-combination-folds', (string) $crawler->filter('[data-testid="product-combinations-section"]')->attr('data-controller'));
+        $toggle = $crawler->filter('.card-header [data-testid="combinations-toolbar"] [data-testid="combinations-folds-toggle"]');
+        self::assertCount(1, $toggle, 'In the toolbar of the grid.');
+        self::assertSame('checkbox', $toggle->attr('type'), 'A switch.');
+        self::assertSame('change->bo-combination-folds#toggleAll', $toggle->attr('data-action'));
+        self::assertNull($toggle->attr('checked'), 'Every fold is closed at first.');
+
+        $one = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$simple->getId());
+        self::assertCount(0, $one->filter('[data-testid="combinations-folds-toggle"]'), 'A product without combination has one fold: nothing to open in bulk.');
     }
 
     public function testTheDefaultPriceCannotBeUpdatedThroughAGet(): void

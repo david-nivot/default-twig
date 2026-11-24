@@ -1,9 +1,9 @@
-<div data-testid="product-combinations-tab" data-controller="bo-combination-quantity-rules">
+<div data-testid="product-combinations-tab">
     {{ safe_hook('product.combinations-tab.top', { product: product.id }) }}
 
     <div class="card mb-3 bo-combinations-card" data-testid="product-combinations-section"
          {%- if has_combinations %}
-         data-controller="bo-bulk-select bo-combinations-bulk-edit"
+         data-controller="bo-bulk-select bo-combinations-bulk-edit bo-combination-folds"
          data-bo-combinations-bulk-edit-active-class="bo-combinations-card--bulk"
          data-bo-combinations-bulk-edit-folded-class="bo-side-panel--folded"
          data-bo-combinations-bulk-edit-bo-pse-price-with-tax-outlet="form[data-testid='combinations-form']"
@@ -24,18 +24,15 @@
                 <span></span>
             {% endif %}
 
-            {# Out of sight while every combination sells by the piece, from one, one by one. #}
-            <div class="form-check form-switch mb-1" data-testid="combinations-quantity-rules-switch-wrapper">
-                <input class="form-check-input" type="checkbox" role="switch" id="combinations-quantity-rules-switch"
-                       data-bo-combination-quantity-rules-target="switch"
-                       data-action="change->bo-combination-quantity-rules#toggle"
-                       data-testid="combinations-quantity-rules-switch"{{ has_quantity_rules ? ' checked' }}>
-                <label class="form-check-label" for="combinations-quantity-rules-switch">{{ 'Sold by measure, by pack or from a minimum'|trans }}</label>
-            </div>
-
             {% if has_combinations or template_attributes is not empty %}
                 <div class="d-flex flex-wrap gap-2" data-testid="combinations-toolbar">
                     {% if has_combinations %}
+                        <div class="form-check form-switch mb-0 align-self-center">
+                            <input class="form-check-input" type="checkbox" role="switch" id="combinations-folds-toggle"
+                                   data-bo-combination-folds-target="toggle" data-action="change->bo-combination-folds#toggleAll"
+                                   data-testid="combinations-folds-toggle">
+                            <label class="form-check-label" for="combinations-folds-toggle">{{ 'Show every field'|trans }}</label>
+                        </div>
                         <button type="button" class="btn btn-outline-secondary" aria-controls="combinations-bulk-panel" aria-expanded="false"
                                 data-bo-combinations-bulk-edit-target="toggle" data-action="bo-combinations-bulk-edit#toggle"
                                 data-testid="combinations-bulk-toggle">
@@ -109,7 +106,7 @@
                         {{ 'The price could not be converted with the tax rule. Type the price without taxes, or try again.'|trans }}
                     </div>
 
-                    <div class="table-responsive">
+                    <div class="table-responsive bo-combinations-scroll">
                         <table class="table table-borderless bo-combinations-grid" data-testid="combinations-table"
                                data-controller="bo-sortable" data-bo-combinations-bulk-edit-target="sortable"
                                data-bo-sortable-item-value="tbody[data-row-id]"
@@ -160,7 +157,6 @@
                                             <input type="radio" name="default_pse" value="{{ row.id }}" hidden {% if row.isdefault %}checked{% endif %}
                                                    aria-label="{{ 'Default combination'|trans }}"
                                                    data-bo-combination-default-target="radio" data-pse-id="{{ row.id }}">
-                                            {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_stock_fields.html.twig', { row: row, field_id: field_id, stock_policies: stock_policies, limited_policy: limited_policy, default_low_stock_threshold: default_low_stock_threshold }, with_context = false) }}
                                         </td>
                                         {# A module returns its own <td>, rowspan="3" to cover the three lines of the combination, on product.combinations-table-row. #}
                                         {{ safe_hook('product.combinations-table-row', { pse_id: row.id, pse: row.id, idx: idx, product: product.id, product_id: product.id }) }}
@@ -173,16 +169,6 @@
                                                     <i class="bi bi-eye" aria-hidden="true"></i><i class="bi bi-eye-slash" aria-hidden="true"></i>
                                                     <span class="visually-hidden">{{ 'Visible in the shop'|trans }}</span>
                                                 </label>
-                                                <button type="button" class="btn btn-sm {{ row.has_quantity_rule ? 'btn-outline-primary' : 'btn-outline-secondary' }} bo-datatable__details-toggle text-nowrap"
-                                                        data-controller="bo-datatable-details" data-action="click->bo-datatable-details#toggle"
-                                                        data-bo-combination-quantity-rules-target="toggleable"{{ has_quantity_rules ? '' : ' hidden' }}
-                                                        aria-expanded="false" aria-controls="pse-quantity-rules-{{ row.id }}"
-                                                        title="{{ 'Quantity rules and units'|trans }}"
-                                                        data-testid="combinations-quantity-rules-toggle-{{ row.id }}">
-                                                    <i class="bi bi-rulers" aria-hidden="true"></i>
-                                                    <span class="visually-hidden">{{ 'Quantity rules and units'|trans }}</span>
-                                                    <i class="bi bi-chevron-down" aria-hidden="true"></i>
-                                                </button>
                                                 {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_row_actions.html.twig', { row: row, product: product }, with_context = false) }}
                                             </div>
                                         </td>
@@ -235,10 +221,11 @@
                                                     data-controller="bo-datatable-details"
                                                     data-action="click->bo-datatable-details#toggle"
                                                     aria-expanded="false" aria-controls="{{ field_id }}-more"
+                                                    title="{{ 'At zero stock, restock, threshold, quantities and units, manufacturer part number, manufacturer'|trans }}"
                                                     data-testid="combinations-more-toggle-{{ row.id }}">
                                                 <i class="bi bi-chevron-down" aria-hidden="true"></i>
                                                 <span class="bo-combinations-grid__more-closed">{{ 'Show the other fields'|trans }}</span>
-                                                <span class="bo-combinations-grid__more-open">{{ 'Hide'|trans }}</span>
+                                                <span class="bo-combinations-grid__more-open">{{ 'Hide the other fields'|trans }}</span>
                                             </button>
                                         </td>
                                         <td class="bo-combinations-grid__identifiers">
@@ -293,13 +280,8 @@
                                         </td>
                                         <td></td>
                                     </tr>
-                                    <tr id="{{ field_id }}-more" hidden data-testid="combinations-more-{{ row.id }}">
-                                        <td class="bo-combinations-grid__handle-cont"></td>
-                                        <td colspan="{{ 7 + module_columns }}">
-                                            {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_more_fields.html.twig', { row: row, field_id: field_id, brand_options: brand_options, product_brand_title: product_brand_title }, with_context = false) }}
-                                        </td>
-                                    </tr>
-                                    <tr class="bo-datatable__details" id="pse-quantity-rules-{{ row.id }}" data-detail-for="{{ row.id }}" hidden
+                                    {# The one fold of the combination: every field the three lines leave out, in three sections. #}
+                                    <tr id="{{ field_id }}-more" class="bo-combinations-grid__fold-line" hidden data-testid="combinations-more-{{ row.id }}"
                                         data-controller="bo-pse-reference-price"
                                         data-bo-pse-reference-price-calc-url-value="{{ path('admin.product.calculate-reference-price') }}"
                                         data-bo-pse-reference-price-price-selector-value="#{{ field_id }}-price"
@@ -309,10 +291,23 @@
                                         data-bo-pse-reference-price-currency-id-value="{{ currency.id }}">
                                         <td class="bo-combinations-grid__handle-cont"></td>
                                         <td colspan="{{ 7 + module_columns }}">
-                                            {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_quantity_rules.html.twig', { rule: row, keyed: true }) }}
+                                            <div class="bo-combinations-grid__fold">
+                                                <fieldset class="bo-combinations-grid__fold-section" data-testid="combinations-fold-stock-{{ row.id }}">
+                                                    <legend>{{ 'At zero stock and restock'|trans }}</legend>
+                                                    {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_stock_fields.html.twig', { row: row, field_id: field_id, stock_policies: stock_policies, limited_policy: limited_policy, default_low_stock_threshold: default_low_stock_threshold }, with_context = false) }}
+                                                </fieldset>
+                                                <fieldset class="bo-combinations-grid__fold-section" data-testid="combinations-fold-quantities-{{ row.id }}">
+                                                    <legend>{{ 'Quantities and units'|trans }}</legend>
+                                                    {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_quantity_rules.html.twig', { rule: row, keyed: true }) }}
+                                                </fieldset>
+                                                <fieldset class="bo-combinations-grid__fold-section" data-testid="combinations-fold-identifiers-{{ row.id }}">
+                                                    <legend>{{ 'Identifiers'|trans }}</legend>
+                                                    {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_more_fields.html.twig', { row: row, field_id: field_id, brand_options: brand_options, product_brand_title: product_brand_title }, with_context = false) }}
+                                                </fieldset>
+                                            </div>
                                         </td>
                                     </tr>
-                                    {# product.combinations-row keeps its contract: it is rendered inside a line, where a module returns its own <tr> lines, as under the line of a combination before. #}
+                                    {# product.combinations-row keeps its contract: it is rendered inside a line, where a module returns its own <tr> lines, as under the line of a combination before. They come after the fold and are shown and hidden with it (main.scss). #}
                                     {% set module_lines %}{{ safe_hook('product.combinations-row', { pse_id: row.id, pse: row.id, idx: idx, product: product.id, product_id: product.id }) }}{% endset %}
                                     {% if module_lines|trim is not empty %}
                                         <tr class="bo-combinations-grid__module-lines" data-testid="combinations-module-lines-{{ row.id }}">{{ module_lines }}</tr>
@@ -673,7 +668,7 @@
                             </div>
                         </div>
 
-                        <div class="card mt-3" data-bo-combination-quantity-rules-target="toggleable"{{ has_quantity_rules ? '' : ' hidden' }}
+                        <div class="card mt-3"
                              data-testid="default-pse-quantity-rules"
                              data-controller="bo-pse-reference-price"
                              data-bo-pse-reference-price-calc-url-value="{{ path('admin.product.calculate-reference-price') }}"

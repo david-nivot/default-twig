@@ -4201,4 +4201,5 @@ return [
     'No order to print: select at least one order, or change the filters.' => 'Aucune commande à imprimer : sélectionnez au moins une commande, ou changez les filtres.',
     'Picking slip of the %count% orders matching the filters' => 'Bon de préparation des %count% commandes correspondant aux filtres',
     'Picking slip of the selection' => 'Bon de préparation de la sélection',
+    'Show every field' => 'Afficher tous les champs',
 ];

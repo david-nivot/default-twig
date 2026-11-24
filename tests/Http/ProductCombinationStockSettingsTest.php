@@ -289,7 +289,7 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
             $defaultPse->setOutOfStockPolicy((int) $policy)->save($this->getPropelConnection());
 
             $grid = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
-            $cell = $grid->filter(\sprintf('tbody[data-testid="combinations-row-%d"] td.bo-combinations-grid__identity [data-testid="combinations-stock-fields-%d"] div[data-controller="bo-stock-policy"]', $pse->getId(), $pse->getId()));
+            $cell = $grid->filter(\sprintf('tbody[data-testid="combinations-row-%d"] tr#combination-%d-more [data-testid="combinations-stock-fields-%d"] div[data-controller="bo-stock-policy"]', $pse->getId(), $pse->getId(), $pse->getId()));
             self::assertSame($limited, $cell->attr('data-bo-stock-policy-limited-value'), 'the grid hands the controller the value of the limited mode');
             self::assertSame($hidden, str_contains((string) $cell->filter('input[name^="preorder_limit["]')->attr('class'), 'd-none'));
 
@@ -300,7 +300,7 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
         }
     }
 
-    public function testTheStockSettingsAreVisibleInTheGridAndNotFoldedAway(): void
+    public function testTheStockSettingsAreASectionOfTheFoldAndNoLongerInTheLineOfTheName(): void
     {
         $this->loginFullAdmin();
         [$product, $pse] = $this->productWithACombination();
@@ -311,8 +311,8 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
         foreach (['out_of_stock_policy', 'preorder_limit', 'restock_date', 'low_stock_threshold'] as $field) {
             $in = static fn (string $scope): string => \sprintf('%1$s %2$s input[name^="%3$s["], %1$s %2$s select[name^="%3$s["]', $row, $scope, $field);
             self::assertCount(1, $crawler->filter($in('tr')), $field.' is rendered once in the grid');
-            self::assertCount(0, $crawler->filter($in('tr[hidden]')), $field.' is not in the folded fields');
-            self::assertCount(1, $crawler->filter($in('tr:not([hidden]) td.bo-combinations-grid__identity')), $field.' is in the line of the name of the combination');
+            self::assertCount(1, $crawler->filter($in(\sprintf('tr#combination-%d-more[hidden] [data-testid="combinations-fold-stock-%d"]', $pse->getId(), $pse->getId()))), $field.' is in the section of the fold');
+            self::assertCount(0, $crawler->filter($in('td.bo-combinations-grid__identity')), $field.' is no longer in the line of the name of the combination');
         }
     }
 

@@ -20,9 +20,9 @@ use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Exception\PropelException;
 use Thelia\Domain\Catalog\Product\Identifier\GtinDuplicateFinder;
 use Thelia\Domain\Catalog\Product\Identifier\GtinSharer;
+use Thelia\Domain\Catalog\Quantity\UnitCode;
 use Thelia\Domain\Catalog\Stock\OutOfStockPolicy;
 use Thelia\Domain\Catalog\Stock\StockSettings;
-use Thelia\Domain\Catalog\Quantity\UnitCode;
 use Thelia\Domain\Taxation\TaxEngine\Calculator;
 use Thelia\Model\Attribute;
 use Thelia\Model\AttributeAv;
@@ -63,7 +63,6 @@ final readonly class CombinationsTabContextBuilder
      *     stock_policies: list<array{value: int, label: string}>,
      *     limited_policy: int,
      *     default_low_stock_threshold: float,
-     *     has_quantity_rules: bool,
      *     unit_choices: list<array{code: string, label: string}>,
      *     decimals_choices: list<int>
      * }
@@ -156,9 +155,6 @@ final readonly class CombinationsTabContextBuilder
             'default_low_stock_threshold' => $this->stockSettings->lowStockThreshold(),
             'brand_options' => $this->catalog->brands($locale),
             'product_brand_title' => $this->productBrandTitle($product, $locale),
-            // The settings stay out of sight while every combination sells by the piece,
-            // from one, one by one: the tab then reads as it always did.
-            'has_quantity_rules' => \in_array(true, array_column($rows, 'has_quantity_rule'), true),
             'unit_choices' => $this->unitChoices($uiLocale),
             'decimals_choices' => [0, 1, 2, 3],
         ];
@@ -205,11 +201,11 @@ final readonly class CombinationsTabContextBuilder
      * the decimal separator of the admin's language and without trailing zeros, "0,75"
      * rather than "0.750000".
      *
-     * @return array{min_quantity: string, quantity_step: string, quantity_decimals: int, unit_quantity: string, reference_unit_quantity: string, unit_code: string, has_quantity_rule: bool}
+     * @return array{min_quantity: string, quantity_step: string, quantity_decimals: int, unit_quantity: string, reference_unit_quantity: string, unit_code: string}
      */
     private function quantityRuleFields(ProductSaleElements $pse, string $uiLocale): array
     {
-        $fields = [
+        return [
             'min_quantity' => $this->displayed($pse->getMinQuantity() ?? '1', $uiLocale),
             'quantity_step' => $this->displayed($pse->getQuantityStep() ?? '1', $uiLocale),
             'quantity_decimals' => (int) $pse->getQuantityDecimals(),
@@ -217,16 +213,6 @@ final readonly class CombinationsTabContextBuilder
             'reference_unit_quantity' => $this->displayed($pse->getReferenceUnitQuantity(), $uiLocale),
             'unit_code' => (string) $pse->getUnitCode(),
         ];
-
-        // Compared as written, never as floats: the defaults read "1".
-        $fields['has_quantity_rule'] = $fields['min_quantity'] !== '1'
-            || $fields['quantity_step'] !== '1'
-            || $fields['quantity_decimals'] !== 0
-            || $fields['unit_quantity'] !== ''
-            || $fields['reference_unit_quantity'] !== ''
-            || $fields['unit_code'] !== '';
-
-        return $fields;
     }
 
     private function displayed(?string $decimalColumn, string $uiLocale): string

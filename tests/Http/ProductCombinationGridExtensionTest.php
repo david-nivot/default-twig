@@ -125,8 +125,8 @@ final class ProductCombinationGridExtensionTest extends WebIntegrationTestCase
 
         foreach ([$combination, $other] as $pse) {
             $lines = $this->widthsOfTheLines($grid->filter(\sprintf('tbody[data-row-id="%d"]', $pse->getId())));
-            self::assertCount(6, $lines);
-            self::assertSame(array_fill(0, 6, $columns), $lines, 'Each line of the combination, the folded fields and the air under it included, spans the grid.');
+            self::assertCount(5, $lines);
+            self::assertSame(array_fill(0, 5, $columns), $lines, 'Each line of the combination, the fold and the air under it included, spans the grid.');
         }
     }
 
@@ -161,6 +161,44 @@ final class ProductCombinationGridExtensionTest extends WebIntegrationTestCase
         self::assertCount(2, $grid->filter('tbody > tr.module-line'));
     }
 
+    public function testTheLinesOfTheRowHookAreShownAndHiddenWithTheFold(): void
+    {
+        [$product, $combination] = $this->productWithACombination();
+        $this->listen(self::LINES_HOOK_EVENT, static function (HookRenderEvent $event): void {
+            $event->add('<tr class="module-line"><td colspan="3">Purchase price</td><td><input name="purchase_price[1]"></td></tr>');
+        });
+
+        $block = $this->tab($product)->filter(\sprintf('tbody[data-row-id="%d"]', $combination->getId()));
+        $fold = $block->children('tr.bo-combinations-grid__fold-line');
+        self::assertCount(1, $fold);
+        self::assertNotNull($fold->attr('hidden'), 'The fold is closed at first.');
+        self::assertCount(1, $fold->nextAll()->filter('tr.bo-combinations-grid__module-lines'), 'The lines of the module come after the fold, which the style reads to hide them with it.');
+
+        $style = (string) file_get_contents(\dirname(__DIR__, 2).'/assets/styles/main.scss');
+        self::assertStringContainsString('> tbody:has(> tr.bo-combinations-grid__fold-line[hidden]) > tr.bo-combinations-grid__module-lines ~ tr:not(.bo-combinations-grid__band-end)', $style);
+    }
+
+    public function testTheFoldKeepsToTheVisibleWidthOfAGridThatScrollsSideways(): void
+    {
+        [$product] = $this->productWithACombination();
+
+        self::assertCount(1, $this->tab($product)->filter('.table-responsive.bo-combinations-scroll > table[data-testid="combinations-table"]'));
+
+        $style = (string) file_get_contents(\dirname(__DIR__, 2).'/assets/styles/main.scss');
+        self::assertMatchesRegularExpression('/@supports \(width: 1cqi\) \{\s*\.bo-combinations-scroll \{\s*container-type: inline-size;/', $style, 'Older browsers keep the fold as it was.');
+        self::assertStringContainsString('max-width: calc(100cqi - 3rem);', $style);
+    }
+
+    public function testNoFieldTheFoldHidesIsRequired(): void
+    {
+        [$product, $combination] = $this->productWithACombination();
+
+        $fold = $this->tab($product)->filter(\sprintf('tr#combination-%d-more', $combination->getId()));
+
+        self::assertGreaterThan(0, $fold->filter('input, select')->count());
+        self::assertCount(0, $fold->filter('[required]'), 'A required field out of sight would block the save without saying why.');
+    }
+
     public function testTheRowHookRendersNothingAroundACombinationItLeavesEmpty(): void
     {
         [$product] = $this->productWithACombination();
@@ -168,7 +206,7 @@ final class ProductCombinationGridExtensionTest extends WebIntegrationTestCase
         $grid = $this->tab($product)->filter('table[data-testid="combinations-table"]');
 
         self::assertCount(0, $grid->filter('tr.bo-combinations-grid__module-lines'));
-        self::assertCount(6, $grid->filter('tbody[data-row-id] > tr'));
+        self::assertCount(5, $grid->filter('tbody[data-row-id] > tr'));
     }
 
     public function testTheCaptionHookKeepsItsPlaceAndItsContext(): void

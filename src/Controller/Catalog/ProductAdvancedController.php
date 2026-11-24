@@ -59,7 +59,6 @@ use Thelia\Domain\Catalog\Product\Identifier\InvalidGtinException;
 use Thelia\Domain\Catalog\Product\Identifier\InvalidMpnException;
 use Thelia\Domain\Catalog\Quantity\InvalidQuantityRuleException;
 use Thelia\Domain\Catalog\Quantity\QuantityRefusedException;
-use Thelia\Domain\Catalog\Quantity\QuantityRule;
 use Thelia\Domain\Catalog\Quantity\ReferenceUnitPriceCalculator;
 use Thelia\Domain\Catalog\Quantity\UnreadableQuantityException;
 use Thelia\Model\AccessoryQuery;
@@ -718,43 +717,6 @@ final class ProductAdvancedController
     }
 
     /**
-     * Saves the grid with the quantity rules of one combination given to every combination
-     * of the product: the rules a merchant typed in a row's panel, the other values of the
-     * grid as typed too, so nothing typed is lost. A combination posted for another product
-     * is left alone, whatever its id.
-     */
-    #[Route('/admin/product/combinations/quantity-rules/add-to-all', name: 'admin.product.combination.quantity-rules.add-to-all', methods: ['POST'])]
-    public function applyQuantityRulesToAll(Request $request, EventDispatcherInterface $events): Response
-    {
-        if ($denied = $this->denyGridWrite($request)) {
-            return $denied;
-        }
-
-        $form = $request->request;
-        $product = ProductQuery::create()->findPk((int) $form->get('product_id', 0));
-        if ($product === null) {
-            return new RedirectResponse($this->urls->generate('admin.products.default'));
-        }
-
-        $sourceId = (int) $form->get('quantity_rules_source', 0);
-        $source = $this->combinationOf($product, $sourceId);
-        if ($source === null) {
-            return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $product->getId(), 'current_tab' => 'pse']));
-        }
-
-        try {
-            $rule = $this->quantityRules->fromGrid($form, $sourceId) ?? QuantityRule::fromProductSaleElements($source);
-        } catch (InvalidQuantityRuleException|UnreadableQuantityException|UnknownUnitCodeException $refusal) {
-            // Nothing is saved: the rules to spread are the very ones refused.
-            $this->identifierNotices->refusedRow((string) $source->getRef(), $refusal);
-
-            return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $product->getId(), 'current_tab' => 'pse']));
-        }
-
-        return $this->saveGrid($request, $events, $product, $rule);
-    }
-
-    /**
      * The grid writes what holds for every sale unit, with the right to update products,
      * and only with the token of the page, read from the body.
      */
@@ -771,17 +733,6 @@ final class ProductAdvancedController
         $this->tokens->checkToken((string) $request->request->get('_token', ''));
 
         return null;
-    }
-
-    /**
-     * The combination of this very product with this id, read alone.
-     */
-    private function combinationOf(Product $product, int $combinationId): ?ProductSaleElements
-    {
-        return ProductSaleElementsQuery::create()
-            ->filterByProductId((int) $product->getId())
-            ->filterById($combinationId)
-            ->findOne();
     }
 
     private function belongsToProduct(Product $product, int $combinationId): bool
@@ -805,7 +756,7 @@ final class ProductAdvancedController
         return $ids;
     }
 
-    private function saveGrid(Request $request, EventDispatcherInterface $events, Product $product, ?QuantityRule $ruleForEveryRow = null): Response
+    private function saveGrid(Request $request, EventDispatcherInterface $events, Product $product): Response
     {
         $form = $request->request;
         $productId = (int) $product->getId();
@@ -893,7 +844,7 @@ final class ProductAdvancedController
 
             // Rules the core cannot accept cost their own row only, like a refused code.
             try {
-                $quantityRule = $ruleForEveryRow ?? $this->quantityRules->fromGrid($form, $pseId);
+                $quantityRule = $this->quantityRules->fromGrid($form, $pseId);
             } catch (InvalidQuantityRuleException|UnreadableQuantityException|UnknownUnitCodeException $refusal) {
                 $this->identifierNotices->refusedRow($this->referenceOf($reference, $pseId), $refusal);
                 continue;

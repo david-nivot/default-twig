@@ -1433,4 +1433,5 @@ return [
     'No order to print: select at least one order, or change the filters.' => 'No order to print: select at least one order, or change the filters.',
     'Picking slip of the %count% orders matching the filters' => 'Picking slip of the %count% orders matching the filters',
     'Picking slip of the selection' => 'Picking slip of the selection',
+    'Show every field' => 'Show every field',
 ];

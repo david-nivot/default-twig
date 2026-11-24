@@ -269,14 +269,17 @@ The two hooks that were already there keep their contract, which is not a column
 - `product.combinations-list-caption` (context `location`) is rendered above the grid, inside the form of the
   combinations, right after `product.before-combinations`;
 - `product.combinations-row` (context `pse_id`, `pse`, `idx`, `product`, `product_id`) is rendered inside a line of
-  the combination, where a module returns its own `<tr>` lines. They come under the combination, after its other
-  lines. Nothing is rendered, and no line added, for a combination the module returns nothing for.
+  the combination, where a module returns its own `<tr>` lines. They come under the combination, after its fold, and
+  are shown and hidden with it: a field there is out of sight while the fold is closed, so it is never `required`.
+  Nothing is rendered, and no line added, for a combination the module returns nothing for.
 
-The other fields of a combination, folded under it, come from `catalog/product/_combination_more_fields.html.twig`. A
-theme or a project that overrides the back office adds its fields there, in a copy of that file, without copying the
-whole tab. Every field of the grid is named by its combination (`mpn[12]`); a copy made when the part number and the
-manufacturer were still named by their place (`mpn[]`, `manufacturer_brand_id[]`) is still read, by place, for these
-two fields only.
+Every field the three lines of a combination leave out sits in one fold under it, in three sections: the stock at
+zero and the restock (`catalog/product/_combination_stock_fields.html.twig`), the quantities and units
+(`_combination_quantity_rules.html.twig`) and the identifiers (`_combination_more_fields.html.twig`). A theme or a
+project that overrides the back office changes a section in a copy of its file, without copying the whole tab; the
+identifiers are where it adds its own fields. Every field of the grid is named by its combination (`mpn[12]`); a copy
+made when the part number and the manufacturer were still named by their place (`mpn[]`, `manufacturer_brand_id[]`)
+is still read, by place, for these two fields only.
 
 What a module adds to the grid is sent with it. The theme does not save it: the module listens to
 `TheliaEvents::PRODUCT_UPDATE_PRODUCT_SALE_ELEMENT`, dispatched for each combination the grid saves (not for one left

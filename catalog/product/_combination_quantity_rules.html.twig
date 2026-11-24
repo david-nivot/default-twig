@@ -1,21 +1,20 @@
 {#
-    The quantity rules and units of one combination: in a row's panel of the grid
-    (`keyed: true`, every field keyed by the id of the combination so that a hidden or
-    removed row never shifts another one's values) or in the default combination's form.
+    The quantity rules and units of one combination: in the fold of its line in the grid
+    (`keyed: true`, every field named by the id of the combination, like every field of the
+    grid) or in the default combination's form.
 
-    Expects: rule (a row of the tab context), unit_choices, decimals_choices, keyed,
-    and, in the grid, product_id for the button that gives these rules to every combination.
+    Expects: rule (a row of the tab context), unit_choices, decimals_choices, keyed.
 #}
 {% set key = keyed ? '[' ~ rule.id ~ ']' : '' %}
 {% set dom_id = 'pse-' ~ rule.id ~ '-' %}
-<div class="bo-datatable__details-grid bo-quantity-rules" data-testid="quantity-rules-{{ rule.id }}">
-    <div class="bo-datatable__details-item bo-quantity-rules__field">
+<div class="bo-quantity-rules" data-testid="quantity-rules-{{ rule.id }}">
+    <div class="bo-quantity-rules__field">
         <label class="form-label small mb-1" for="{{ dom_id }}min-quantity">{{ 'Minimum quantity'|trans }}</label>
         <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end"
                id="{{ dom_id }}min-quantity" name="min_quantity{{ key }}" value="{{ rule.min_quantity }}"
                data-testid="quantity-rules-min-{{ rule.id }}">
     </div>
-    <div class="bo-datatable__details-item bo-quantity-rules__field">
+    <div class="bo-quantity-rules__field">
         <label class="form-label small mb-1" for="{{ dom_id }}quantity-step">{{ 'Sold by'|trans }}</label>
         <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end"
                id="{{ dom_id }}quantity-step" name="quantity_step{{ key }}" value="{{ rule.quantity_step }}"
@@ -23,7 +22,7 @@
                data-testid="quantity-rules-step-{{ rule.id }}">
         <div id="{{ dom_id }}quantity-step-help" class="form-text">{{ 'Every quantity is a multiple of it.'|trans }}</div>
     </div>
-    <div class="bo-datatable__details-item bo-quantity-rules__field">
+    <div class="bo-quantity-rules__field">
         <label class="form-label small mb-1" for="{{ dom_id }}quantity-decimals">{{ 'Decimals of a quantity'|trans }}</label>
         <select class="form-select form-select-sm" id="{{ dom_id }}quantity-decimals" name="quantity_decimals{{ key }}"
                 data-testid="quantity-rules-decimals-{{ rule.id }}">
@@ -34,7 +33,7 @@
             {% endfor %}
         </select>
     </div>
-    <div class="bo-datatable__details-item bo-quantity-rules__field">
+    <div class="bo-quantity-rules__field">
         <label class="form-label small mb-1" for="{{ dom_id }}unit-code">{{ 'Unit'|trans }}</label>
         <select class="form-select form-select-sm" id="{{ dom_id }}unit-code" name="unit_code{{ key }}"
                 data-bo-pse-reference-price-target="unitCode"
@@ -46,7 +45,7 @@
             {% endfor %}
         </select>
     </div>
-    <div class="bo-datatable__details-item bo-quantity-rules__field">
+    <div class="bo-quantity-rules__field">
         <label class="form-label small mb-1" for="{{ dom_id }}unit-quantity">{{ 'Content of one unit sold'|trans }}</label>
         <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end"
                id="{{ dom_id }}unit-quantity" name="unit_quantity{{ key }}" value="{{ rule.unit_quantity }}"
@@ -54,7 +53,7 @@
                data-action="blur->bo-pse-reference-price#compute"
                data-testid="quantity-rules-unit-quantity-{{ rule.id }}">
     </div>
-    <div class="bo-datatable__details-item bo-quantity-rules__field">
+    <div class="bo-quantity-rules__field">
         <label class="form-label small mb-1" for="{{ dom_id }}reference-unit-quantity">{{ 'Price shown per'|trans }}</label>
         <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end"
                id="{{ dom_id }}reference-unit-quantity" name="reference_unit_quantity{{ key }}" value="{{ rule.reference_unit_quantity }}"
@@ -63,23 +62,13 @@
                data-action="blur->bo-pse-reference-price#compute"
                data-testid="quantity-rules-reference-quantity-{{ rule.id }}">
     </div>
-    <div class="bo-datatable__details-item bo-quantity-rules__field">
+    <div class="bo-quantity-rules__field">
         <span class="form-label small mb-1 d-block">{{ 'Price per reference unit, incl. tax'|trans }}</span>
         <output class="d-block fw-semibold py-1" data-bo-pse-reference-price-target="output" aria-live="polite"
                 data-testid="quantity-rules-reference-price-{{ rule.id }}">-</output>
     </div>
-    <p class="form-text w-100 mb-0">
+    <p class="form-text bo-quantity-rules__note mb-0">
         <i class="bi bi-info-circle" aria-hidden="true"></i>
         {{ 'Changing these rules adjusts the quantities of carts in progress the next time they are read.'|trans }}
     </p>
-    {% if keyed %}
-        <div class="w-100">
-            <button type="submit" class="btn btn-sm btn-outline-primary"
-                    formaction="{{ path('admin.product.combination.quantity-rules.add-to-all') }}"
-                    name="quantity_rules_source" value="{{ rule.id }}"
-                    data-testid="quantity-rules-apply-to-all-{{ rule.id }}">
-                <i class="bi bi-copy" aria-hidden="true"></i> {{ 'Apply these settings to every combination and save'|trans }}
-            </button>
-        </div>
-    {% endif %}
 </div>
