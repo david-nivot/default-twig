@@ -1,14 +1,12 @@
 import { Controller } from '@hotwired/stimulus';
 
 /**
- * Previews the price of a combination per reference unit (13,32 € / l) while the merchant
- * types, the way bo-pse-price-with-tax previews the taxed price: the server taxes the price
- * and the core divides, never this script. Asked when a unit field is left and when the
- * price of the combination changes. The price divided is the one the customer pays: the sale
- * price while the combination is on promotion, the price otherwise.
+ * Fills the line under a combination sold with a unit (price per unit of measure, content, order) while
+ * the merchant types: the server taxes the price and the core divides, never this script. The price
+ * divided is the one the customer pays: the sale price while the combination is on promotion.
  */
 export default class extends Controller {
-    static targets = ['unitQuantity', 'referenceUnitQuantity', 'unitCode', 'output'];
+    static targets = ['unitQuantity', 'referenceUnitQuantity', 'unitCode', 'minQuantity', 'quantityStep', 'quantityDecimals', 'line', 'lineText'];
 
     static values = {
         calcUrl: String,
@@ -17,27 +15,38 @@ export default class extends Controller {
         onSaleSelector: String,
         taxRuleSelector: String,
         currencyId: Number,
+        productId: { type: Number, default: 0 },
     };
 
     connect() {
         this.onPriceChange = () => this.compute();
         this.watched = [this.priceInput, this.salePriceInput, this.onSaleInput].filter(Boolean);
         this.watched.forEach((input) => input.addEventListener('change', this.onPriceChange));
-        this.compute();
+        // The server rendered the line of the saved values: a reset gives it back, without a request.
+        this.initialLine = this.hasLineTarget ? { hidden: this.lineTarget.hidden, html: this.hasLineTextTarget ? this.lineTextTarget.innerHTML : '' } : null;
+        // "Cancel the changes" resets the form: the browser puts the values back after the event.
+        this.onReset = () => setTimeout(() => this.restoreInitialLine());
+        this.resetForm = this.form;
+        this.resetForm?.addEventListener('reset', this.onReset);
     }
 
     disconnect() {
         (this.watched ?? []).forEach((input) => input.removeEventListener('change', this.onPriceChange));
+        this.resetForm?.removeEventListener('reset', this.onReset);
     }
 
     async compute() {
+        // A project copy of the fold without one of these fields keeps the line the server wrote.
+        if (!this.hasUnitQuantityTarget || !this.hasReferenceUnitQuantityTarget || !this.hasUnitCodeTarget) {
+            return;
+        }
         const unitQuantity = this.unitQuantityTarget.value.trim();
         const referenceUnitQuantity = this.referenceUnitQuantityTarget.value.trim();
         const unitCode = this.unitCodeTarget.value;
         const price = this.payablePrice();
 
         if (unitQuantity === '' || referenceUnitQuantity === '' || unitCode === '' || price === '') {
-            this.outputTarget.textContent = '-';
+            this.showLine(null);
 
             return;
         }
@@ -46,25 +55,80 @@ export default class extends Controller {
         url.searchParams.set('price', price);
         url.searchParams.set('tax_rule_id', this.form?.querySelector(this.taxRuleSelectorValue)?.value ?? '0');
         url.searchParams.set('currency_id', String(this.currencyIdValue));
+        // A tax whose amount is a feature of the product needs it, as for the price with taxes of the row.
+        if (this.productIdValue > 0) {
+            url.searchParams.set('product_id', String(this.productIdValue));
+        }
         url.searchParams.set('unit_quantity', unitQuantity);
         url.searchParams.set('reference_unit_quantity', referenceUnitQuantity);
         url.searchParams.set('unit_code', unitCode);
+        if (this.hasLineTarget) {
+            [['min_quantity', 'minQuantity'], ['quantity_step', 'quantityStep'], ['quantity_decimals', 'quantityDecimals']].forEach(([name, target]) => {
+                const field = this[`has${target[0].toUpperCase()}${target.slice(1)}Target`] ? this[`${target}Target`] : null;
+                if (field) {
+                    url.searchParams.set(name, field.value.trim());
+                }
+            });
+            url.searchParams.set('on_sale', this.onSale() ? '1' : '0');
+        }
 
         try {
             const response = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             const payload = await response.json();
-            // A refused rule answers 422 with the reason: shown as text, in place of the dash.
-            this.outputTarget.textContent = payload?.formatted ?? (typeof payload?.error === 'string' && payload.error !== '' ? payload.error : '-');
+            // A refused rule answers 422 with the reason, shown as text in the line.
+            const error = typeof payload?.error === 'string' && payload.error !== '' ? payload.error : null;
+            this.showLine(payload?.line ?? error);
         } catch {
-            this.outputTarget.textContent = '-';
+            this.showLine(null);
         }
+    }
+
+    restoreInitialLine() {
+        if (this.initialLine === null) {
+            return;
+        }
+        this.showLine(null);
+        this.lineTarget.hidden = this.initialLine.hidden;
+        if (this.hasLineTextTarget) {
+            this.lineTextTarget.innerHTML = this.initialLine.html;
+        }
+    }
+
+    /** The parts of the line ({ label, value }), or the reason a rule is refused, as text. */
+    showLine(line) {
+        if (!this.hasLineTarget) {
+            return;
+        }
+        this.lineTarget.hidden = line === null || line === '' || (Array.isArray(line) && line.length === 0);
+        if (!this.hasLineTextTarget) {
+            return;
+        }
+        if (!Array.isArray(line)) {
+            this.lineTextTarget.textContent = line ?? '';
+
+            return;
+        }
+        this.lineTextTarget.replaceChildren(...line.map(({ label, value }) => {
+            const part = document.createElement('span');
+            part.className = 'bo-combinations-grid__fact';
+            const strong = document.createElement('strong');
+            strong.textContent = value;
+            part.append(`${label} `, strong);
+
+            return part;
+        }));
+    }
+
+    onSale() {
+        const salePrice = this.salePriceInput?.value ?? '';
+
+        return Boolean(this.onSaleInput?.checked) && salePrice !== '' && Number(salePrice) > 0;
     }
 
     /** The sale price of a combination on promotion, the price of the row otherwise. */
     payablePrice() {
-        const salePrice = this.salePriceInput?.value ?? '';
-        if (this.onSaleInput?.checked && salePrice !== '' && Number(salePrice) > 0) {
-            return salePrice;
+        if (this.onSale()) {
+            return this.salePriceInput.value;
         }
 
         return this.priceInput?.value ?? '';

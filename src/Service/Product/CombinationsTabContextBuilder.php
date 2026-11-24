@@ -62,8 +62,9 @@ final readonly class CombinationsTabContextBuilder
      *     template_attributes: list<array{id: int, title: string, values: list<array{id: int, title: string}>}>,
      *     stock_policies: list<array{value: int, label: string}>,
      *     limited_policy: int,
+     *     unlimited_policy: int,
      *     default_low_stock_threshold: float,
-     *     unit_choices: list<array{code: string, label: string}>,
+     *     unit_choices: list<array{code: string, label: string, symbol: string}>,
      *     decimals_choices: list<int>
      * }
      */
@@ -79,6 +80,7 @@ final readonly class CombinationsTabContextBuilder
         // The combination of a bundle holds no stock of its own: the stock of its components decides, so no figure is shown.
         $isBundle = BundleCore::present() && 1 === (int) $product->getIsBundle();
         $sellable = $isBundle ? [] : ($this->sellableReader?->of($combinations) ?? []);
+        $shopThreshold = $this->stockSettings->lowStockThreshold();
         foreach ($combinations as $pse) {
             $description = $this->labeler->describe($pse, $locale);
             $hasCombinations = $hasCombinations || CombinationLabeler::DEFAULT_LABEL !== $description['label'];
@@ -118,6 +120,12 @@ final readonly class CombinationsTabContextBuilder
                 'visible' => (bool) $pse->getVisible(),
                 'position' => (int) $pse->getPosition(),
             ] + $this->quantityRuleFields($pse, $uiLocale);
+            $row['unit_symbol'] = UnitCode::tryFrom($row['unit_code'])?->symbol();
+            $row['sellable_state'] = $this->sellableState($row);
+            $row['sellable_available'] = $row['sellable'] !== null ? $this->sellableAvailable($row) : null;
+            $row['low_stock_threshold_applied'] = $row['low_stock_threshold'] ?? $shopThreshold;
+            // The same comparison as the core's low stock alert: at or under the threshold.
+            $row['low_stock'] = $row['sellable'] !== null && $row['quantity'] <= $row['low_stock_threshold_applied'];
             $rows[] = $row;
         }
 
@@ -152,6 +160,7 @@ final readonly class CombinationsTabContextBuilder
             'template_attributes' => $this->collectTemplateAttributes($product, $locale),
             'stock_policies' => $this->stockPolicies(),
             'limited_policy' => OutOfStockPolicy::Limited->value,
+            'unlimited_policy' => OutOfStockPolicy::Unlimited->value,
             'default_low_stock_threshold' => $this->stockSettings->lowStockThreshold(),
             'brand_options' => $this->catalog->brands($locale),
             'product_brand_title' => $this->productBrandTitle($product, $locale),
@@ -215,6 +224,49 @@ final readonly class CombinationsTabContextBuilder
         ];
     }
 
+    /**
+     * How what a combination may still sell compares with its stock, for the icon at the end
+     * of its stock line: without limit, on preorder (nothing in stock, the limit open), none
+     * left, held (the carts or the preorder limit make it differ from the stock), or the same
+     * as the stock. Null when the figures were not read (a bundle).
+     *
+     * @param array<string, mixed> $row
+     */
+    private function sellableState(array $row): ?string
+    {
+        $sellable = $row['sellable'];
+        if ($sellable === null) {
+            return null;
+        }
+
+        if ($sellable['unlimited']) {
+            return 'unlimited';
+        }
+
+        $available = $this->sellableAvailable($row);
+        if ($available <= 0.0) {
+            return 'none';
+        }
+
+        if ($row['out_of_stock_policy'] === OutOfStockPolicy::Limited->value && $row['quantity'] <= 0.0) {
+            return 'pre';
+        }
+
+        return abs($available - $row['quantity']) > 1e-9 ? 'held' : 'sync';
+    }
+
+    /**
+     * A combination sold by the piece sells whole pieces: half of one left under a preorder limit is none.
+     *
+     * @param array<string, mixed> $row
+     */
+    private function sellableAvailable(array $row): float
+    {
+        $available = (float) $row['sellable']['available'];
+
+        return max(0.0, $row['quantity_decimals'] > 0 ? $available : floor($available));
+    }
+
     private function displayed(?string $decimalColumn, string $uiLocale): string
     {
         if ($decimalColumn === null || trim($decimalColumn) === '') {
@@ -230,12 +282,12 @@ final readonly class CombinationsTabContextBuilder
     /**
      * The units the core knows, named in the admin's language, read once per tab.
      *
-     * @return list<array{code: string, label: string}>
+     * @return list<array{code: string, label: string, symbol: string}>
      */
     private function unitChoices(string $uiLocale): array
     {
         return array_map(
-            static fn (UnitCode $unit): array => ['code' => $unit->value, 'label' => $unit->label($uiLocale).' ('.$unit->symbol().')'],
+            static fn (UnitCode $unit): array => ['code' => $unit->value, 'label' => $unit->label($uiLocale).' ('.$unit->symbol().')', 'symbol' => $unit->symbol()],
             UnitCode::cases(),
         );
     }

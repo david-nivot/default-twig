@@ -3917,7 +3917,6 @@ return [
     'No unit' => 'Aucune unité',
     'Content of one unit sold' => 'Contenance d\'une unité vendue',
     'Price shown per' => 'Prix affiché pour',
-    'Price per reference unit, incl. tax' => 'Prix à l\'unité de référence, TTC',
     'Changing these rules adjusts the quantities of carts in progress the next time they are read.' => 'Modifier ces règles ajuste les quantités des paniers en cours à leur prochaine lecture.',
     'Apply these settings to every combination and save' => 'Appliquer ces réglages à toutes les déclinaisons et enregistrer',
     'The unit "%unit%" is not one of the units a combination can be sold in.' => 'L\'unité « %unit% » ne fait pas partie des unités dans lesquelles une déclinaison peut être vendue.',
@@ -4201,5 +4200,9 @@ return [
     'No order to print: select at least one order, or change the filters.' => 'Aucune commande à imprimer : sélectionnez au moins une commande, ou changez les filtres.',
     'Picking slip of the %count% orders matching the filters' => 'Bon de préparation des %count% commandes correspondant aux filtres',
     'Picking slip of the selection' => 'Bon de préparation de la sélection',
+    'Price per unit of measure' => 'Prix à l\'unité de mesure',
+    '%price% incl. taxes' => '%price% TTC',
+    '%price% incl. taxes (sale price)' => '%price% TTC (prix promo)',
+    'from %min%, by %step%' => 'dès %min%, par %step%',
     'Show every field' => 'Afficher tous les champs',
 ];

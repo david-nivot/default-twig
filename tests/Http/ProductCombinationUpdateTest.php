@@ -495,6 +495,7 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         $reference = $form->filter(\sprintf('input[name="reference[%d]"]', $id));
         self::assertNotNull($reference->attr('readonly'), 'The reference follows the one of the product.');
         self::assertSame($pse->getRef(), $reference->attr('value'), 'Read-only, it is still sent.');
+        self::assertSame('Follows the reference of the product', $form->filter(\sprintf('[data-testid="combinations-ref-hint-%d"][data-bs-toggle="tooltip"]', $id))->attr('title'), 'Said in a tooltip, the line keeps its height.');
         self::assertCount(1, $form->filter(\sprintf('tr#combination-%d-more [data-testid="combinations-fold-stock-%d"]', $id, $id)), 'It has the fold of a combination.');
 
         $this->client->request('POST', self::COMBINATIONS_URL, [

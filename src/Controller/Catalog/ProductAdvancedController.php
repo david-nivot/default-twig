@@ -23,6 +23,7 @@ use BackOfficeDefaultTwigBundle\Service\Product\CombinationPositionMover;
 use BackOfficeDefaultTwigBundle\Service\Product\CombinationsTabContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Product\GroupPricesContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Product\QuantityRuleSubmission;
+use BackOfficeDefaultTwigBundle\Service\Product\ReferencePriceLineWriter;
 use BackOfficeDefaultTwigBundle\Service\Product\ReferenceUnitPricePresenter;
 use BackOfficeDefaultTwigBundle\Service\Product\SaleUnitValuesContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Product\StockSettingsSubmission;
@@ -59,6 +60,7 @@ use Thelia\Domain\Catalog\Product\Identifier\InvalidGtinException;
 use Thelia\Domain\Catalog\Product\Identifier\InvalidMpnException;
 use Thelia\Domain\Catalog\Quantity\InvalidQuantityRuleException;
 use Thelia\Domain\Catalog\Quantity\QuantityRefusedException;
+use Thelia\Domain\Catalog\Quantity\QuantityRule;
 use Thelia\Domain\Catalog\Quantity\ReferenceUnitPriceCalculator;
 use Thelia\Domain\Catalog\Quantity\UnreadableQuantityException;
 use Thelia\Model\AccessoryQuery;
@@ -125,6 +127,7 @@ final class ProductAdvancedController
         private readonly QuantityRuleSubmission $quantityRules,
         private readonly ReferenceUnitPriceCalculator $referenceUnitPrices,
         private readonly ReferenceUnitPricePresenter $referenceUnitPricePresenter,
+        private readonly ReferencePriceLineWriter $referencePriceLines,
     ) {
     }
 
@@ -400,6 +403,8 @@ final class ProductAdvancedController
      * The price of a combination brought to its reference unit, while the merchant types:
      * the price excluding taxes of the row is taxed with the rule of the product, as the
      * shop shows it, and the core divides. Values not saved yet, so read from the query.
+     * With the minimum, the step and the decimals, it also writes the line the grid shows
+     * under the combination: how it is sold, then that price.
      */
     #[Route('/admin/product/calculate-reference-price', name: 'admin.product.calculate-reference-price', methods: ['GET'])]
     public function calculateReferencePrice(Request $request): JsonResponse
@@ -411,23 +416,31 @@ final class ProductAdvancedController
         $query = $request->query;
 
         try {
-            $rule = $this->quantityRules->read([
+            $fields = [
                 QuantityRuleSubmission::UNIT_QUANTITY => (string) $query->get('unit_quantity', ''),
                 QuantityRuleSubmission::REFERENCE_UNIT_QUANTITY => (string) $query->get('reference_unit_quantity', ''),
                 QuantityRuleSubmission::UNIT_CODE => (string) $query->get('unit_code', ''),
-            ]);
+            ];
+            foreach ([QuantityRuleSubmission::MIN_QUANTITY, QuantityRuleSubmission::QUANTITY_STEP, QuantityRuleSubmission::QUANTITY_DECIMALS] as $field) {
+                if ($query->has($field)) {
+                    $fields[$field] = (string) $query->get($field, '');
+                }
+            }
+            $rule = $this->quantityRules->read($fields);
         } catch (InvalidQuantityRuleException|UnreadableQuantityException|UnknownUnitCodeException $unreadable) {
             return new JsonResponse(['result' => null, 'formatted' => null, 'error' => $unreadable->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         // The price field of the row is a number field: the browser posts it with a dot.
         $price = (float) $query->get('price', 0);
+        // A tax whose amount is a feature of the product needs it; the rule is the one sent, not the stored one.
+        $product = ProductQuery::create()->findPk((int) $query->get('product_id', 0));
         $referencePrice = $rule !== null && $price > 0
-            ? $this->referenceUnitPrices->compute($this->taxedPrice($price, (int) $query->get('tax_rule_id', 0)), $rule)
+            ? $this->referenceUnitPrices->compute($this->taxedPrice($price, (int) $query->get('tax_rule_id', 0), $product), $rule)
             : null;
 
         if ($referencePrice === null) {
-            return new JsonResponse(['result' => null, 'formatted' => null]);
+            return new JsonResponse(['result' => null, 'formatted' => null, 'line' => null]);
         }
 
         $currencyCode = CurrencyQuery::create()->findPk((int) $query->get('currency_id', 0))?->getCode();
@@ -435,14 +448,54 @@ final class ProductAdvancedController
         return new JsonResponse([
             'result' => $referencePrice->price,
             'formatted' => $this->referenceUnitPricePresenter->format($referencePrice, $request->getLocale(), $currencyCode),
+            'line' => $this->referencePriceLines->write($rule, $referencePrice, $request->getLocale(), $currencyCode, $query->getBoolean('on_sale')),
         ]);
     }
 
     /**
-     * The price as the shop shows it, taxed in the default country; untaxed when the rule
-     * cannot be applied, as the taxed price preview does.
+     * The line under each combination sold with a unit, written as the preview writes it while the
+     * merchant types (calculate-reference-price): shown at once, without a request per combination.
+     *
+     * @param list<array<string, mixed>> $rows
+     *
+     * @return list<array<string, mixed>>
      */
-    private function taxedPrice(float $price, int $taxRuleId): float
+    private function withReferenceLines(Product $product, array $rows, string $locale, ?string $currencyCode): array
+    {
+        $ids = array_map(static fn (array $row): int => (int) $row['id'], $rows);
+        $saleElements = [];
+        foreach ([] === $ids ? [] : ProductSaleElementsQuery::create()->filterById($ids, Criteria::IN)->find() as $saleElement) {
+            $saleElements[(int) $saleElement->getId()] = $saleElement;
+        }
+
+        foreach ($rows as $index => $row) {
+            $rows[$index]['reference_line'] = null;
+            $saleElement = $saleElements[(int) $row['id']] ?? null;
+            if (null === $saleElement) {
+                continue;
+            }
+
+            $rule = QuantityRule::fromProductSaleElements($saleElement);
+            $onSale = (bool) ($row['onsale'] ?? false) && (float) ($row['sale_price'] ?? 0) > 0;
+            $price = (float) ($onSale ? $row['sale_price'] : ($row['price'] ?? 0));
+            if (null === $rule->unitCode || $price <= 0) {
+                continue;
+            }
+
+            $referencePrice = $this->referenceUnitPrices->compute($this->taxedPrice($price, (int) $product->getTaxRuleId(), $product), $rule);
+            if (null !== $referencePrice) {
+                $rows[$index]['reference_line'] = $this->referencePriceLines->write($rule, $referencePrice, $locale, $currencyCode, $onSale);
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The price as the shop shows it, taxed in the default country with the features of the
+     * product, as the price with taxes of the grid; untaxed when the rule cannot be applied.
+     */
+    private function taxedPrice(float $price, int $taxRuleId, ?Product $product): float
     {
         $taxRule = \Thelia\Model\TaxRuleQuery::create()->findPk($taxRuleId);
         $country = \Thelia\Model\CountryQuery::create()->findOneByByDefault(1);
@@ -452,7 +505,9 @@ final class ProductAdvancedController
 
         $calculator = new \Thelia\Domain\Taxation\TaxEngine\Calculator();
         try {
-            $calculator->loadTaxRuleWithoutProduct($taxRule, $country);
+            $product !== null
+                ? $calculator->loadTaxRule($taxRule, $country, $product)
+                : $calculator->loadTaxRuleWithoutProduct($taxRule, $country);
 
             return (float) $calculator->getTaxedPrice($price);
         } catch (\Throwable) {
@@ -913,6 +968,10 @@ final class ProductAdvancedController
 
         $currencyId = (int) ($request->attributes->get('currency_id') ?? $request->query->get('currency_id', 0));
         $context = $this->combinationsTabContextBuilder->build($product, $currencyId > 0 ? $currencyId : null, $request->getLocale());
+        $context['pse_rows'] = $this->withReferenceLines($product, $context['pse_rows'], $request->getLocale(), $context['currency']['code']);
+        if (null !== $context['default_pse']) {
+            $context['default_pse'] = $this->withReferenceLines($product, [$context['default_pse']], $request->getLocale(), $context['currency']['code'])[0];
+        }
 
         // The tab is a sub-request: the sale unit picked on the product sheet is in the
         // query of the page itself.

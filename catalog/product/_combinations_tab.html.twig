@@ -121,8 +121,27 @@
                         {{ 'The price could not be converted with the tax rule. Type the price without taxes, or try again.'|trans }}
                     </div>
 
+                    {# The wordings of the sellable icon and of the low stock line, shared by the server and by bo-combination-band. #}
+                    {% set band_texts = {
+                        unlimited: 'Sellable without limit'|trans,
+                        pre: 'Sellable: %available% on preorder'|trans,
+                        none: 'Sellable: 0'|trans,
+                        held: 'Sellable: %available% (stock %stock%)'|trans,
+                        sync: 'Sellable: %available%, like the stock'|trans,
+                        unlimitedBody: 'Sales go on at zero stock.'|trans,
+                        preBody: 'Stock at %stock%, preorder limit %limit%.'|trans,
+                        noneBody: 'Nothing to sell: the stock is run out or held.'|trans,
+                        heldByCarts: 'Held by the carts: %quantity% in %carts% cart(s), the nearest expiry is %date%.'|trans,
+                        notHeld: 'No cart holds any unit of this combination.'|trans,
+                        low: 'Low stock: %stock%, threshold %threshold%.'|trans,
+                        lowShop: 'Low stock: %stock%, threshold %threshold% (shop).'|trans,
+                        out0: 'Out of stock, sales are blocked.'|trans,
+                        out1: 'Out of stock, sales go on.'|trans,
+                        out2: 'Out of stock, preorder open, %limit% at most.'|trans,
+                    } %}
                     <div class="table-responsive bo-combinations-scroll">
                         <table class="table table-borderless bo-combinations-grid{{ simple ? ' bo-combinations-grid--simple' }}" data-testid="combinations-table"
+                               data-combination-band-texts="{{ band_texts|json_encode|e('html_attr') }}"
                                {%- if not simple %}
                                data-controller="bo-sortable" data-bo-combinations-bulk-edit-target="sortable"
                                data-bo-sortable-item-value="tbody[data-row-id]"
@@ -161,7 +180,21 @@
                                 {% set field_id = 'combination-' ~ row.id %}
                                 <tbody data-testid="combinations-row-{{ row.id }}" data-row-id="{{ row.id }}"
                                        data-bo-pse-price-with-tax-scope
-                                       data-controller="bo-virtual-toggle" data-bo-virtual-toggle-mode-value="readonly">
+                                       data-controller="bo-virtual-toggle bo-combination-band bo-pse-reference-price" data-bo-virtual-toggle-mode-value="readonly"
+                                       data-bo-combination-band-reserved-value="{{ row.sellable.reserved|default(0) }}"
+                                       data-bo-combination-band-carts-value="{{ row.sellable.cart_count|default(0) }}"
+                                       data-bo-combination-band-expiry-value="{{ row.sellable.next_expiry|default(null) ? row.sellable.next_expiry|date('Y-m-d H:i') }}"
+                                       data-bo-combination-band-measured-value="{{ row.sellable is not null ? 'true' : 'false' }}"
+                                       data-bo-combination-band-shop-threshold-value="{{ default_low_stock_threshold }}"
+                                       data-bo-combination-band-unlimited-policy-value="{{ unlimited_policy }}"
+                                       data-bo-combination-band-limited-policy-value="{{ limited_policy }}"
+                                       data-bo-pse-reference-price-calc-url-value="{{ path('admin.product.calculate-reference-price') }}"
+                                       data-bo-pse-reference-price-price-selector-value="#{{ field_id }}-price"
+                                       data-bo-pse-reference-price-sale-price-selector-value="#{{ field_id }}-sale-price"
+                                       data-bo-pse-reference-price-on-sale-selector-value="#{{ field_id }}-onsale"
+                                       data-bo-pse-reference-price-tax-rule-selector-value="[name=&quot;tax_rule&quot;]"
+                                       data-bo-pse-reference-price-currency-id-value="{{ currency.id }}"
+                                       data-bo-pse-reference-price-product-id-value="{{ product.id }}">
                                     <tr>
                                         {% if simple %}
                                             <td rowspan="3"></td>
@@ -216,20 +249,35 @@
                                             <div class="bo-combinations-grid__field">
                                                 <label for="{{ field_id }}-ref">{{ 'Ref.'|trans }}</label>
                                                 <input type="hidden" name="product_sale_element_id[]" value="{{ row.id }}">
-                                                {# The default combination of a product without combination carries the reference of the product, which the core copies onto it. #}
-                                                <input type="text" id="{{ field_id }}-ref" name="reference[{{ row.id }}]" value="{{ row.ref }}" class="form-control form-control-sm bo-combinations-grid__ref"
-                                                       {%- if simple %} readonly aria-describedby="{{ field_id }}-ref-note" data-testid="combinations-ref-{{ row.id }}"{% endif %}>
+                                                {% if simple %}
+                                                    {# The default combination of a product without combination carries the reference of the product, which the core copies onto it. #}
+                                                    <div class="bo-combinations-grid__with-hint">
+                                                        <input type="text" id="{{ field_id }}-ref" name="reference[{{ row.id }}]" value="{{ row.ref }}" class="form-control form-control-sm bo-combinations-grid__ref"
+                                                               readonly data-testid="combinations-ref-{{ row.id }}">
+                                                        <button type="button" class="btn btn-sm bo-combinations-grid__hint" data-bs-toggle="tooltip"
+                                                                title="{{ 'Follows the reference of the product'|trans }}" aria-label="{{ 'Follows the reference of the product'|trans }}"
+                                                                data-testid="combinations-ref-hint-{{ row.id }}">
+                                                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                                        </button>
+                                                    </div>
+                                                {% else %}
+                                                    <input type="text" id="{{ field_id }}-ref" name="reference[{{ row.id }}]" value="{{ row.ref }}" class="form-control form-control-sm bo-combinations-grid__ref">
+                                                {% endif %}
                                             </div>
-                                            {% if simple %}
-                                                <small class="text-body-secondary d-block bo-combinations-grid__note" id="{{ field_id }}-ref-note">{{ 'Follows the reference of the product'|trans }}</small>
-                                            {% endif %}
                                         </td>
                                         <td class="bo-combinations-grid__logistics">
                                             <div class="bo-combinations-grid__field">
                                                 <label for="{{ field_id }}-quantity">{{ 'Stock'|trans }}</label>
-                                                <input type="number" step="any" id="{{ field_id }}-quantity" name="quantity[{{ row.id }}]" value="{{ row.quantity }}" data-bulk-field="quantity" class="form-control form-control-sm text-end bo-combinations-grid__number">
+                                                <div class="bo-combinations-grid__stock">
+                                                    <div class="input-group input-group-sm">
+                                                        <input type="number" step="any" id="{{ field_id }}-quantity" name="quantity[{{ row.id }}]" value="{{ row.quantity }}" data-bulk-field="quantity" class="form-control text-end bo-combinations-grid__number"
+                                                               data-bo-combination-band-target="quantity">
+                                                        {# The unit of a combination sold by measure: its stock is a measure too. #}
+                                                        <span class="input-group-text" data-bo-combination-band-target="stockUnit" data-testid="combinations-stock-unit-{{ row.id }}"{% if not (row.unit_symbol and row.quantity_decimals > 0) %} hidden{% endif %}>{{ row.unit_symbol }}</span>
+                                                    </div>
+                                                    {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_sellable.html.twig', { row: row, texts: band_texts }, with_context = false) }}
+                                                </div>
                                             </div>
-                                            {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_sellable.html.twig', { row: row, note_class: 'text-body-secondary bo-combinations-grid__note' }, with_context = false) }}
                                         </td>
                                         <td></td>
                                         <td>
@@ -317,15 +365,44 @@
                                         </td>
                                         <td></td>
                                     </tr>
+                                    {# Two lines shown only when they have something to say, under the three lines and over the whole width: the cells of the modules keep their rowspan="3". #}
+                                    <tr class="bo-combinations-grid__extra" data-bo-pse-reference-price-target="line" data-testid="combinations-reference-line-{{ row.id }}"
+                                        {%- if row.reference_line is empty %} hidden{% endif %}>
+                                        <td class="bo-combinations-grid__handle-cont"></td>
+                                        <td colspan="{{ 7 + module_columns }}">
+                                            <div class="bo-combinations-grid__extra-box bo-combinations-grid__extra-box--info">
+                                                <i class="bi bi-rulers" aria-hidden="true"></i>
+                                                <span class="bo-combinations-grid__facts" data-bo-pse-reference-price-target="lineText" aria-live="polite">
+                                                    {%- for part in row.reference_line|default([]) %}<span class="bo-combinations-grid__fact">{{ part.label }} <strong>{{ part.value }}</strong></span>{% endfor -%}
+                                                </span>
+                                                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" data-action="bo-combination-band#openRules"
+                                                        data-testid="combinations-reference-line-edit-{{ row.id }}">{{ 'Edit'|trans }}</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% set stock_unit = row.quantity_decimals > 0 ? row.unit_code : null %}
+                                    {% if row.quantity <= 0 %}
+                                        {% set low_text = band_texts['out' ~ row.out_of_stock_policy]|replace({ '%limit%': row.preorder_limit|default(0)|format_quantity(row.quantity_decimals, stock_unit) }) %}
+                                    {% else %}
+                                        {% set low_text = (row.low_stock_threshold is null ? band_texts.lowShop : band_texts.low)|replace({ '%stock%': row.quantity|format_quantity(row.quantity_decimals, stock_unit), '%threshold%': row.low_stock_threshold_applied|default(0)|format_quantity(row.quantity_decimals, stock_unit) }) %}
+                                    {% endif %}
+                                    <tr class="bo-combinations-grid__extra" data-bo-combination-band-target="lowLine" data-testid="combinations-low-stock-{{ row.id }}"
+                                        {%- if not row.low_stock %} hidden{% endif %}>
+                                        <td class="bo-combinations-grid__handle-cont"></td>
+                                        <td colspan="{{ 7 + module_columns }}">
+                                            <div class="bo-combinations-grid__extra-box bo-combinations-grid__extra-box--warning">
+                                                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                                <span data-bo-combination-band-target="lowText" data-testid="combinations-low-stock-text-{{ row.id }}">{{ low_text }}</span>
+                                                {# The restock date comes here from the fold while the stock is low: the same field, moved, still named by its combination. #}
+                                                <span class="bo-combinations-grid__extra-slot">
+                                                    <label class="form-label small mb-0" for="{{ field_id }}-restock-date">{{ 'Restock planned on'|trans }}</label>
+                                                    <span data-bo-combination-band-target="restockSlot"></span>
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
                                     {# The one fold of the combination: every field the three lines leave out, in three sections. #}
-                                    <tr id="{{ field_id }}-more" class="bo-combinations-grid__fold-line" hidden data-testid="combinations-more-{{ row.id }}"
-                                        data-controller="bo-pse-reference-price"
-                                        data-bo-pse-reference-price-calc-url-value="{{ path('admin.product.calculate-reference-price') }}"
-                                        data-bo-pse-reference-price-price-selector-value="#{{ field_id }}-price"
-                                        data-bo-pse-reference-price-sale-price-selector-value="#{{ field_id }}-sale-price"
-                                        data-bo-pse-reference-price-on-sale-selector-value="#{{ field_id }}-onsale"
-                                        data-bo-pse-reference-price-tax-rule-selector-value="[name=&quot;tax_rule&quot;]"
-                                        data-bo-pse-reference-price-currency-id-value="{{ currency.id }}">
+                                    <tr id="{{ field_id }}-more" class="bo-combinations-grid__fold-line" hidden data-testid="combinations-more-{{ row.id }}">
                                         <td class="bo-combinations-grid__handle-cont"></td>
                                         <td colspan="{{ 7 + module_columns }}">
                                             <div class="bo-combinations-grid__fold">

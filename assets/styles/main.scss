@@ -2855,6 +2855,99 @@ tr.bo-order-row--urgent {
         }
     }
 
+    // The stock, its unit when sold by measure, and the sellable icon at the end of the line.
+    .bo-combinations-grid__stock,
+    .bo-combinations-grid__with-hint {
+        display: flex;
+        align-items: center;
+        gap: .25rem;
+
+        > .input-group {
+            flex: 1 1 auto;
+            width: auto;
+        }
+
+        // The unit is hidden while the combination is sold by the piece: the field keeps its round corners.
+        > .input-group > .form-control:has(+ .input-group-text[hidden]) {
+            border-start-end-radius: var(--bs-border-radius-sm);
+            border-end-end-radius: var(--bs-border-radius-sm);
+        }
+    }
+
+    .bo-combinations-grid__sellable,
+    .bo-combinations-grid__hint {
+        --bs-btn-padding-x: .3rem;
+        --bs-btn-padding-y: .1rem;
+        --bs-btn-color: var(--bs-secondary-color);
+        --bs-btn-hover-color: var(--bs-emphasis-color);
+        --bs-btn-border-color: transparent;
+        flex-shrink: 0;
+        line-height: 1;
+
+        // Colored only when what may be sold is not the stock.
+        &[data-state="held"],
+        &[data-state="pre"] { --bs-btn-color: var(--bs-warning-text-emphasis); }
+        &[data-state="none"] { --bs-btn-color: var(--bs-danger-text-emphasis); }
+    }
+
+    // The lines shown under a combination only when they have something to say.
+    > tbody > tr.bo-combinations-grid__extra > td:not(.bo-combinations-grid__handle-cont) {
+        padding-block: .2rem;
+        white-space: normal;
+    }
+
+    .bo-combinations-grid__extra-box {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .35rem .6rem;
+        padding: .3rem .6rem;
+        border-radius: var(--bs-border-radius);
+        font-size: .8rem;
+
+        // Bootstrap's subtle backgrounds, half see-through: a line under a combination, not an alert.
+        &--info {
+            background-color: rgba($info-bg-subtle, .55);
+            color: var(--bs-info-text-emphasis);
+        }
+
+        &--warning {
+            background-color: rgba($warning-bg-subtle, .55);
+            color: var(--bs-warning-text-emphasis);
+        }
+
+        .btn-link {
+            --bs-btn-font-size: .8rem;
+        }
+    }
+
+    .bo-combinations-grid__facts {
+        display: inline-flex;
+        flex-wrap: wrap;
+        column-gap: .5rem;
+    }
+
+    .bo-combinations-grid__fact + .bo-combinations-grid__fact::before {
+        content: "·";
+        margin-inline-end: .5rem;
+    }
+
+    .bo-combinations-grid__extra-slot {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+
+        // The theme sizes every .form-label at .9rem: larger than the text of the line.
+        .form-label {
+            font-size: .75rem;
+            color: inherit;
+        }
+
+        .form-control {
+            width: auto;
+        }
+    }
+
     // The one fold of a combination: three sections side by side, two fields a line in each, stacked on a phone.
     .bo-combinations-grid__fold {
         display: grid;

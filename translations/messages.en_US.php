@@ -1433,5 +1433,9 @@ return [
     'No order to print: select at least one order, or change the filters.' => 'No order to print: select at least one order, or change the filters.',
     'Picking slip of the %count% orders matching the filters' => 'Picking slip of the %count% orders matching the filters',
     'Picking slip of the selection' => 'Picking slip of the selection',
+    'Price per unit of measure' => 'Price per unit of measure',
+    '%price% incl. taxes' => '%price% incl. taxes',
+    '%price% incl. taxes (sale price)' => '%price% incl. taxes (sale price)',
+    'from %min%, by %step%' => 'from %min%, by %step%',
     'Show every field' => 'Show every field',
 ];

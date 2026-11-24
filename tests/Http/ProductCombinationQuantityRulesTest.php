@@ -232,6 +232,74 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
         self::assertStringEndsWith(' / l', (string) $payload['formatted']);
     }
 
+    public function testThePreviewWritesTheLineOfACombinationSoldByMeasureAndOfOneSoldWithAContent(): void
+    {
+        $this->loginFullAdmin();
+        $query = ['price' => '9.99', 'tax_rule_id' => 0, 'currency_id' => $this->defaultCurrency()->getId(), 'unit_quantity' => '0,75', 'reference_unit_quantity' => '1', 'unit_code' => 'l'];
+
+        $this->client->request('GET', self::PREVIEW_URL, $query + ['min_quantity' => '0,5', 'quantity_step' => '0,25', 'quantity_decimals' => '2']);
+        $line = json_decode((string) $this->client->getResponse()->getContent(), true)['line'];
+        self::assertSame(['Price per unit of measure', 'Order'], array_column($line, 'label'), 'Sold by measure: no content.');
+        self::assertStringEndsWith(' / l incl. taxes', $line[0]['value']);
+        self::assertSame('from 0.50 l, by 0.25 l', $line[1]['value']);
+
+        $this->client->request('GET', self::PREVIEW_URL, $query + ['min_quantity' => '6', 'quantity_step' => '6', 'quantity_decimals' => '0', 'on_sale' => '1']);
+        $line = json_decode((string) $this->client->getResponse()->getContent(), true)['line'];
+        self::assertSame(['Price per unit of measure', 'Content', 'Order'], array_column($line, 'label'));
+        self::assertStringEndsWith('incl. taxes (sale price)', $line[0]['value']);
+        self::assertStringStartsWith('0', $line[1]['value']);
+        self::assertSame('from 6, by 6', $line[2]['value']);
+
+        $this->client->request('GET', self::PREVIEW_URL, $query + ['min_quantity' => '1', 'quantity_step' => '1', 'quantity_decimals' => '0']);
+        $line = json_decode((string) $this->client->getResponse()->getContent(), true)['line'];
+        self::assertSame(['Price per unit of measure', 'Content'], array_column($line, 'label'), 'From 1, by 1 goes without saying.');
+
+        $this->client->request('GET', self::PREVIEW_URL, ['unit_code' => ''] + $query);
+        self::assertNull(json_decode((string) $this->client->getResponse()->getContent(), true)['line'], 'Without a unit, no line.');
+    }
+
+    public function testTheLineOfTheReferencePriceAndTheUnitOfTheStockShowOnlyForACombinationWithAUnit(): void
+    {
+        $this->loginFullAdmin();
+        [$product, $piece] = $this->productWithCombinations(1);
+        $weighed = $this->combinationOf($product, ['quantityDecimals' => 2, 'unitQuantity' => 1, 'referenceUnitQuantity' => 1, 'unitCode' => 'kg']);
+
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+
+        self::assertNotNull($crawler->filter(\sprintf('[data-testid="combinations-reference-line-%d"]', $piece->getId()))->attr('hidden'));
+        self::assertNotNull($crawler->filter(\sprintf('[data-testid="combinations-stock-unit-%d"]', $piece->getId()))->attr('hidden'));
+        $line = $crawler->filter(\sprintf('[data-testid="combinations-reference-line-%d"]', $weighed->getId()));
+        self::assertNull($line->attr('hidden'), 'A combination sold with a unit has its line.');
+        self::assertStringContainsString('Price per unit of measure', $line->text(), 'Written by the server: shown at once, without a request per combination.');
+        self::assertStringContainsString(' / kg incl. taxes', $line->text());
+        self::assertCount(1, $line->filter('[data-action="bo-combination-band#openRules"]'), 'It opens the fold on the quantities.');
+        $unit = $crawler->filter(\sprintf('[data-testid="combinations-stock-unit-%d"]', $weighed->getId()));
+        self::assertNull($unit->attr('hidden'));
+        self::assertSame('kg', trim($unit->text()));
+        self::assertSame('kg', $crawler->filter(\sprintf('select[name="unit_code[%d]"] option[value="kg"]', $weighed->getId()))->attr('data-symbol'));
+    }
+
+    public function testTheRulesAreCheckedOnChangeSoThatABulkFillIsCheckedToo(): void
+    {
+        $this->loginFullAdmin();
+        [, $combination] = $this->productWithCombinations(1);
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$combination->getProductId());
+
+        foreach (['min_quantity', 'quantity_step', 'unit_quantity', 'reference_unit_quantity'] as $field) {
+            $action = (string) $crawler->filter(\sprintf('input[name="%s[%d]"]', $field, $combination->getId()))->attr('data-action');
+            self::assertStringContainsString('change->bo-pse-reference-price#compute', $action, $field.': the bulk edit sends change, never blur.');
+        }
+    }
+
+    public function testAnArticleSoldByThePieceWithoutAContentHasNoLine(): void
+    {
+        $writer = $this->getService(\BackOfficeDefaultTwigBundle\Service\Product\ReferencePriceLineWriter::class);
+        $price = new \Thelia\Domain\Catalog\Quantity\ReferenceUnitPrice(10.0, 1.0, \Thelia\Domain\Catalog\Quantity\UnitCode::LITRE);
+
+        self::assertNull($writer->write(new \Thelia\Domain\Catalog\Quantity\QuantityRule(unitCode: \Thelia\Domain\Catalog\Quantity\UnitCode::LITRE), $price, 'en_US', 'EUR', false), 'Never "Content: 0 l".');
+        self::assertNotNull($writer->write(new \Thelia\Domain\Catalog\Quantity\QuantityRule(unitQuantity: 0.75, referenceUnitQuantity: 1.0, unitCode: \Thelia\Domain\Catalog\Quantity\UnitCode::LITRE), $price, 'en_US', 'EUR', false));
+    }
+
     public function testThePreviewWritesTheUnitOfAReferenceQuantityOfAnArticleSoldByThePiece(): void
     {
         $this->loginFullAdmin();
@@ -258,7 +326,7 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
         $this->loginFullAdmin();
 
         $this->client->request('GET', self::PREVIEW_URL, ['price' => '9.99', 'unit_quantity' => '0,75', 'reference_unit_quantity' => '1', 'unit_code' => '']);
-        self::assertSame(['result' => null, 'formatted' => null], json_decode((string) $this->client->getResponse()->getContent(), true));
+        self::assertSame(['result' => null, 'formatted' => null, 'line' => null], json_decode((string) $this->client->getResponse()->getContent(), true));
 
         $this->client->request('GET', self::PREVIEW_URL, ['price' => '9.99', 'unit_quantity' => 'abc', 'reference_unit_quantity' => '1', 'unit_code' => 'l']);
         self::assertSame(422, $this->client->getResponse()->getStatusCode());
@@ -347,7 +415,7 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
 
         $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
 
-        $preview = $crawler->filter(\sprintf('tr#combination-%d-more', $bottle->getId()));
+        $preview = $crawler->filter(\sprintf('tbody[data-row-id="%d"]', $bottle->getId()));
         foreach (['sale-price-selector', 'on-sale-selector', 'price-selector'] as $name) {
             $selector = (string) $preview->attr('data-bo-pse-reference-price-'.$name.'-value');
             self::assertNotSame('', $selector, $name.' is declared.');

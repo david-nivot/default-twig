@@ -7,21 +7,24 @@
     <div class="bo-combinations-grid__stock-policy" data-controller="bo-stock-policy" data-bo-stock-policy-limited-value="{{ limited_policy }}">
         <label class="form-label small" for="{{ field_id }}-policy" title="{{ 'What happens when the stock is at zero'|trans }}">{{ 'At zero stock'|trans }}</label>
         <select id="{{ field_id }}-policy" name="out_of_stock_policy[{{ row.id }}]" class="form-select form-select-sm"
-                data-bo-stock-policy-target="policy" data-action="change->bo-stock-policy#toggle" data-testid="combinations-policy-{{ row.id }}">
+                data-bo-stock-policy-target="policy" data-bo-combination-band-target="policy" data-action="change->bo-stock-policy#toggle" data-testid="combinations-policy-{{ row.id }}">
             {% for policy in stock_policies %}
                 <option value="{{ policy.value }}"{{ policy.value == row.out_of_stock_policy ? ' selected' }}>{{ policy.label|trans }}</option>
             {% endfor %}
         </select>
         <input type="number" step="any" name="preorder_limit[{{ row.id }}]" value="{{ row.preorder_limit }}" placeholder="{{ 'Preorder limit'|trans }}"
                class="form-control form-control-sm text-end mt-1{{ row.out_of_stock_policy != limited_policy ? ' d-none' }}" aria-label="{{ 'Preorder limit'|trans }}"
-               data-bo-stock-policy-target="limit" data-testid="combinations-preorder-limit-{{ row.id }}">
+               data-bo-stock-policy-target="limit" data-bo-combination-band-target="preorderLimit" data-testid="combinations-preorder-limit-{{ row.id }}">
     </div>
-    <div>
-        <label class="form-label small" for="{{ field_id }}-restock-date">{{ 'Restock date'|trans }}</label>
-        <input type="date" id="{{ field_id }}-restock-date" name="restock_date[{{ row.id }}]" value="{{ row.restock_date }}" class="form-control form-control-sm" data-testid="combinations-restock-date-{{ row.id }}">
+    {# While the stock is low, bo-combination-band moves the date into the low stock line and says so here. #}
+    <div data-bo-combination-band-target="restockHome">
+        <label class="form-label small" for="{{ field_id }}-restock-date" data-bo-combination-band-target="restockLabel">{{ 'Restock date'|trans }}</label>
+        <input type="date" id="{{ field_id }}-restock-date" name="restock_date[{{ row.id }}]" value="{{ row.restock_date }}" class="form-control form-control-sm"
+               data-bo-combination-band-target="restockDate" data-testid="combinations-restock-date-{{ row.id }}">
+        <div class="form-text" data-bo-combination-band-target="restockMoved" hidden>{{ 'Restock date: in the low stock line while the stock is low.'|trans }}</div>
     </div>
     <div>
         <label class="form-label small" for="{{ field_id }}-low-stock-threshold" title="{{ 'Empty: the threshold of the shop applies'|trans }}">{{ 'Low stock threshold'|trans }}</label>
-        <input type="number" step="any" min="0" id="{{ field_id }}-low-stock-threshold" name="low_stock_threshold[{{ row.id }}]" value="{{ row.low_stock_threshold }}" placeholder="{{ default_low_stock_threshold }}" class="form-control form-control-sm text-end bo-combinations-grid__number" data-testid="combinations-low-stock-threshold-{{ row.id }}">
+        <input type="number" step="any" min="0" id="{{ field_id }}-low-stock-threshold" name="low_stock_threshold[{{ row.id }}]" value="{{ row.low_stock_threshold }}" placeholder="{{ default_low_stock_threshold }}" class="form-control form-control-sm text-end bo-combinations-grid__number" data-bo-combination-band-target="threshold" data-testid="combinations-low-stock-threshold-{{ row.id }}">
     </div>
 </div>

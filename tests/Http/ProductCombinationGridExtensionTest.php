@@ -125,8 +125,8 @@ final class ProductCombinationGridExtensionTest extends WebIntegrationTestCase
 
         foreach ([$combination, $other] as $pse) {
             $lines = $this->widthsOfTheLines($grid->filter(\sprintf('tbody[data-row-id="%d"]', $pse->getId())));
-            self::assertCount(5, $lines);
-            self::assertSame(array_fill(0, 5, $columns), $lines, 'Each line of the combination, the fold and the air under it included, spans the grid.');
+            self::assertCount(7, $lines);
+            self::assertSame(array_fill(0, 7, $columns), $lines, 'Each line of the combination, the lines shown when they have something to say, the fold and the air under it included, spans the grid.');
         }
     }
 
@@ -249,7 +249,7 @@ final class ProductCombinationGridExtensionTest extends WebIntegrationTestCase
         $grid = $this->tab($product)->filter('table[data-testid="combinations-table"]');
 
         self::assertCount(0, $grid->filter('tr.bo-combinations-grid__module-lines'));
-        self::assertCount(5, $grid->filter('tbody[data-row-id] > tr'));
+        self::assertCount(7, $grid->filter('tbody[data-row-id] > tr'));
     }
 
     public function testTheCaptionHookKeepsItsPlaceAndItsContext(): void

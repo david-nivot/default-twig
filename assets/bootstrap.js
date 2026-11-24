@@ -23,6 +23,7 @@ import BoCategoryTreeController from './controllers/bo-category-tree_controller.
 import BoChartController from './controllers/bo-chart_controller.js';
 import BoCombinationBuilderController from './controllers/bo-combination-builder_controller.js';
 import BoCombinationCreationController from './controllers/bo-combination-creation_controller.js';
+import BoCombinationBandController from './controllers/bo-combination-band_controller.js';
 import BoCombinationDefaultController from './controllers/bo-combination-default_controller.js';
 import BoCombinationFoldsController from './controllers/bo-combination-folds_controller.js';
 import BoCombinationsBulkEditController from './controllers/bo-combinations-bulk-edit_controller.js';
@@ -104,6 +105,7 @@ app.register('bo-category-tree', BoCategoryTreeController);
 app.register('bo-chart', BoChartController);
 app.register('bo-combination-builder', BoCombinationBuilderController);
 app.register('bo-combination-creation', BoCombinationCreationController);
+app.register('bo-combination-band', BoCombinationBandController);
 app.register('bo-combination-default', BoCombinationDefaultController);
 app.register('bo-combination-folds', BoCombinationFoldsController);
 app.register('bo-combinations-bulk-edit', BoCombinationsBulkEditController);
