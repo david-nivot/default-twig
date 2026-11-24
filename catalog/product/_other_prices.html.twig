@@ -1,7 +1,4 @@
-{#- The other prices of the product, under the grid: one card, a tab each. A tab is rendered only when its content is
-    (the right to read it, a sale unit, a customer group); each keeps its own form, saved alone, and the save brings the
-    merchant back to it (other_prices_tab). A dot marks a tab whose form holds changes.
-    Expects: product, currency, sale_unit_values, group_prices, group_prices_can_edit, other_prices_tab. -#}
+{#- The other prices under the grid, one tab each (only those with content); a save comes back to its tab (other_prices_tab). -#}
 {% set panels = [] %}
 {% if sale_unit_values|default(null) is not null %}
     {% set panels = panels|merge([{ key: 'sale-units', label: 'Sale units'|trans, html: include('@BackOfficeDefaultTwig/catalog/product/_sale_unit_values.html.twig') }]) %}

@@ -52,9 +52,7 @@ use Thelia\Model\TaxRuleQuery;
  * shows and whether the product is reachable at all. A hidden price is not resolved here, and a
  * combination is bought only when the mode lets the customer buy it and the resolver does.
  *
- * Every amount is given without taxes, as saved, and with the taxes of the product in the
- * default country of the shop, the way the grid shows its prices: the merchant reads what the
- * customer pays.
+ * Every amount comes as saved, without taxes, and with the taxes of the product in the default country.
  */
 final readonly class EffectivePricePresenter
 {
@@ -219,9 +217,8 @@ final readonly class EffectivePricePresenter
     }
 
     /**
-     * The amount with the taxes of the product in the default country of the shop; null when
-     * there is no amount or the rule cannot be applied, never the amount without taxes in its place.
-     * The failure is logged, so that a fault of the calculator does not pass for a product without a price with taxes.
+     * Null when the rule cannot be applied, never the untaxed amount; the failure is logged, so
+     * that a fault of the calculator does not pass for a product without a price with taxes.
      *
      * @return \Closure(float|string|null): ?float
      */

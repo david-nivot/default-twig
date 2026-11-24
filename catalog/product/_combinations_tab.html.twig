@@ -21,7 +21,6 @@
                             {% endfor %}
                         </select>
                     </div>
-                    {# Next to the currency it converts to, sent with the grid it belongs to (form=). Unticked, nothing is sent: the prices typed are kept. #}
                     {% if not currency.is_default and (has_combinations or default_pse is not null) %}
                         <div class="form-check mb-1" data-testid="combinations-use-exchange-rate-wrapper">
                             <input class="form-check-input" type="checkbox" id="combinations-use-exchange-rate" name="use_exchange_rate" value="1" form="combinations-form" data-testid="combinations-use-exchange-rate">
@@ -52,6 +51,9 @@
                         </button>
                     {% endif %}
                     {% if template_attributes is not empty %}
+                        {% if not has_combinations and default_pse is not null %}
+                            <span class="small text-body-secondary align-self-center" data-testid="combinations-empty-hint">{{ 'This product has no combination yet: the line below sets its price and its stock.'|trans }}</span>
+                        {% endif %}
                         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#combination-creation-modal" data-testid="combination-create-btn">
                             <i class="bi bi-plus-circle" aria-hidden="true"></i> {{ 'Add a combination'|trans }}
                         </button>
@@ -64,18 +66,13 @@
         </div>
 
         <div class="card-body">
-            {# A product without combination is shown as a grid of one line, its default combination, saved like a grid. #}
+            {# A product without combination: a grid of one line, its default combination. #}
             {% set simple = not has_combinations %}
             {% if simple and default_pse is null %}
                 <div class="alert alert-warning" data-testid="default-pse-missing">
                     {{ 'No default product sale element. Please contact your administrator.'|trans }}
                 </div>
             {% else %}
-                {% if simple and template_attributes is not empty %}
-                    <div class="alert alert-info" data-testid="combinations-empty-hint">
-                        {{ 'This product has no combination yet. The default pricing below is used while no combination exists.'|trans }}
-                    </div>
-                {% endif %}
                 <form method="post" action="{{ path('admin.product.combination.update') }}" id="combinations-form" data-testid="combinations-form"
                       data-bo-unsaved-changes-target="form"
                       data-controller="bo-pse-price-with-tax bo-combination-default"
@@ -90,7 +87,6 @@
                         <input type="hidden" name="visible_sent" value="1">
                     {% endif %}
 
-                    {# The tax rule belongs to the product: one field above the grid, as narrow as its longest rule needs. #}
                     <div class="mb-3 bo-combinations-tax-rule">
                         <label class="form-label required" for="combinations-tax-rule">
                             <span class="bo-form-label__text">{{ 'Tax rule'|trans }}</span><span class="bo-form-label__required" aria-hidden="true">*</span>
@@ -120,7 +116,7 @@
                         {{ 'The price could not be converted with the tax rule. Type the price without taxes, or try again.'|trans }}
                     </div>
 
-                    {# The wordings of the sellable icon and of the low stock line, shared by the server and by bo-combination-band. #}
+                    {# Also read by bo-combination-band. #}
                     {% set band_texts = {
                         unlimited: 'Sellable without limit'|trans,
                         pre: 'Sellable: %available% on preorder'|trans,
@@ -167,7 +163,7 @@
                                     <th class="bo-combinations-grid__col-price">{{ 'Price excl. taxes'|trans }}</th>
                                     <th class="bo-combinations-grid__col-price">{{ 'Price incl. taxes'|trans }}</th>
                                     {# A module returns its own <th> on product.combinations-table-header; counted, so that the lines spanning the grid span them too. #}
-                                    {# The hooks of the grid are not rendered for a product without combination: its modules write through product.details-*. #}
+                                    {# Grid hooks are not rendered for a product without combination (product.details-* are). #}
                                     {% set module_headers %}{% if not simple %}{{ safe_hook('product.combinations-table-header', { location: 'product_combinations_table_header', product: product.id, product_id: product.id }) }}{% endif %}{% endset %}
                                     {% set module_columns = (module_headers|split('<th')|length) - 1 %}
                                     {{ module_headers }}
@@ -249,7 +245,7 @@
                                                 <label for="{{ field_id }}-ref">{{ 'Ref.'|trans }}</label>
                                                 <input type="hidden" name="product_sale_element_id[]" value="{{ row.id }}">
                                                 {% if simple %}
-                                                    {# The default combination of a product without combination carries the reference of the product, which the core copies onto it. #}
+                                                    {# Mirror of the product reference. #}
                                                     <div class="bo-combinations-grid__with-hint">
                                                         <input type="text" id="{{ field_id }}-ref" name="reference[{{ row.id }}]" value="{{ row.ref }}" class="form-control form-control-sm bo-combinations-grid__ref"
                                                                readonly data-testid="combinations-ref-{{ row.id }}">
@@ -271,7 +267,6 @@
                                                     <div class="input-group input-group-sm">
                                                         <input type="number" step="any" id="{{ field_id }}-quantity" name="quantity[{{ row.id }}]" value="{{ row.quantity }}" data-bulk-field="quantity" class="form-control text-end bo-combinations-grid__number"
                                                                data-bo-combination-band-target="quantity">
-                                                        {# The unit of a combination sold by measure: its stock is a measure too. #}
                                                         <span class="input-group-text" data-bo-combination-band-target="stockUnit" data-testid="combinations-stock-unit-{{ row.id }}"{% if not (row.unit_symbol and row.quantity_decimals > 0) %} hidden{% endif %}>{{ row.unit_symbol }}</span>
                                                     </div>
                                                     {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_sellable.html.twig', { row: row, texts: band_texts }, with_context = false) }}
@@ -364,7 +359,7 @@
                                         </td>
                                         <td></td>
                                     </tr>
-                                    {# Two lines shown only when they have something to say, under the three lines and over the whole width: the cells of the modules keep their rowspan="3". #}
+                                    {# Conditional lines: full width, the module cells keep rowspan="3". #}
                                     <tr class="bo-combinations-grid__extra" data-bo-pse-reference-price-target="line" data-testid="combinations-reference-line-{{ row.id }}"
                                         {%- if row.reference_line is empty %} hidden{% endif %}>
                                         <td class="bo-combinations-grid__handle-cont"></td>
@@ -392,7 +387,6 @@
                                             <div class="bo-combinations-grid__extra-box bo-combinations-grid__extra-box--warning">
                                                 <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
                                                 <span data-bo-combination-band-target="lowText" data-testid="combinations-low-stock-text-{{ row.id }}">{{ low_text }}</span>
-                                                {# The restock date comes here from the fold while the stock is low: the same field, moved, still named by its combination. #}
                                                 <span class="bo-combinations-grid__extra-slot">
                                                     <label class="form-label small mb-0" for="{{ field_id }}-restock-date">{{ 'Restock planned on'|trans }}</label>
                                                     <span data-bo-combination-band-target="restockSlot"></span>
@@ -400,7 +394,6 @@
                                             </div>
                                         </td>
                                     </tr>
-                                    {# The one fold of the combination: every field the three lines leave out, in three sections. #}
                                     <tr id="{{ field_id }}-more" class="bo-combinations-grid__fold-line" hidden data-testid="combinations-more-{{ row.id }}">
                                         <td class="bo-combinations-grid__handle-cont"></td>
                                         <td colspan="{{ 7 + module_columns }}">
@@ -418,7 +411,6 @@
                                                     {{ include('@BackOfficeDefaultTwig/catalog/product/_combination_more_fields.html.twig', { row: row, field_id: field_id, brand_options: brand_options, product_brand_title: product_brand_title }, with_context = false) }}
                                                 </fieldset>
                                                 {% if simple %}
-                                                    {# The fields modules add to a product without combination: inside the form of the grid, sent with it. #}
                                                     {% set details_context = { product: product.id, pse: row.id, product_sale_element_id: row.id } %}
                                                     {% set module_fields %}
                                                         {{- safe_hook('product.details-pricing-form', details_context|merge({ location: 'product_details_pricing_form' })) -}}
@@ -435,7 +427,7 @@
                                             </div>
                                         </td>
                                     </tr>
-                                    {# product.combinations-row keeps its contract: it is rendered inside a line, where a module returns its own <tr> lines, as under the line of a combination before. They come after the fold and are shown and hidden with it (main.scss). #}
+                                    {# product.combinations-row keeps its contract: it is rendered inside a line, where a module returns its own <tr> lines, as under the line of a combination before. #}
                                     {% set module_lines %}{% if not simple %}{{ safe_hook('product.combinations-row', { pse_id: row.id, pse: row.id, idx: idx, product: product.id, product_id: product.id }) }}{% endif %}{% endset %}
                                     {% if module_lines|trim is not empty %}
                                         <tr class="bo-combinations-grid__module-lines" data-testid="combinations-module-lines-{{ row.id }}">{{ module_lines }}</tr>
@@ -609,7 +601,6 @@
                                             data-bulk-field="unit" data-bo-combinations-bulk-edit-target="field"
                                             data-testid="combinations-bulk-unit">
                                         <option value="">{{ 'Unchanged'|trans }}</option>
-                                        {# A value of its own: an empty one means "unchanged". #}
                                         <option value="__none">{{ 'No unit'|trans }}</option>
                                         {% for unit in unit_choices %}
                                             <option value="{{ unit.code }}">{{ unit.label }}</option>

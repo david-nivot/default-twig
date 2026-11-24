@@ -1,6 +1,4 @@
-{# What a combination may still sell (its stock and what its sale mode allows below zero, less what the carts hold): an icon at the end of its stock line,
-   colored when it differs from the stock, and in its tooltip what the carts hold. Nothing is added when the figures were not read (a bundle).
-   bo-combination-band redraws it while the merchant types, with the same texts.
+{# Sellable icon at the end of the stock line, colored when it differs from the stock; nothing for a bundle. Redrawn by bo-combination-band.
    Expects: row (row.id, row.quantity, row.preorder_limit, row.sellable: unlimited, available, reserved, cart_count, next_expiry; row.sellable_state,
    row.sellable_available; row.quantity_decimals and row.unit_code write the figures in the unit the combination is sold in), texts (the wordings, by state). #}
 {% if row.sellable is not null %}

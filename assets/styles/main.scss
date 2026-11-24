@@ -2867,7 +2867,6 @@ tr.bo-order-row--urgent {
         }
     }
 
-    // The stock, its unit when sold by measure, and the sellable icon at the end of the line.
     .bo-combinations-grid__stock,
     .bo-combinations-grid__with-hint {
         display: flex;
@@ -2879,7 +2878,7 @@ tr.bo-order-row--urgent {
             width: auto;
         }
 
-        // The unit is hidden while the combination is sold by the piece: the field keeps its round corners.
+        // Hidden unit: keep the round corners.
         > .input-group > .form-control:has(+ .input-group-text[hidden]) {
             border-start-end-radius: var(--bs-border-radius-sm);
             border-end-end-radius: var(--bs-border-radius-sm);
@@ -2896,13 +2895,12 @@ tr.bo-order-row--urgent {
         flex-shrink: 0;
         line-height: 1;
 
-        // Colored only when what may be sold is not the stock.
         &[data-state="held"],
         &[data-state="pre"] { --bs-btn-color: var(--bs-warning-text-emphasis); }
         &[data-state="none"] { --bs-btn-color: var(--bs-danger-text-emphasis); }
     }
 
-    // The lines shown under a combination only when they have something to say.
+    // Conditional lines (low stock, reference price).
     > tbody > tr.bo-combinations-grid__extra > td:not(.bo-combinations-grid__handle-cont) {
         padding-block: .2rem;
         white-space: normal;
@@ -2960,7 +2958,7 @@ tr.bo-order-row--urgent {
         }
     }
 
-    // The one fold of a combination: three sections side by side, two fields a line in each, stacked on a phone.
+    // The fold: three sections, two fields per line.
     .bo-combinations-grid__fold {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
@@ -3002,7 +3000,6 @@ tr.bo-order-row--urgent {
             }
         }
 
-        // The policy and its limit take the whole section: the longest wording has to be readable.
         .bo-combinations-grid__more-fields > div.bo-combinations-grid__stock-policy,
         .bo-quantity-rules__note {
             grid-column: 1 / -1;
@@ -3034,7 +3031,7 @@ tr.bo-order-row--urgent {
         }
     }
 
-    // The lines product.combinations-row adds come after the fold: shown and hidden with it.
+    // product.combinations-row lines follow the fold.
     > tbody:has(> tr.bo-combinations-grid__fold-line[hidden]) > tr.bo-combinations-grid__module-lines,
     > tbody:has(> tr.bo-combinations-grid__fold-line[hidden]) > tr.bo-combinations-grid__module-lines ~ tr:not(.bo-combinations-grid__band-end) {
         display: none;
@@ -3130,7 +3127,6 @@ tr.bo-order-row--urgent {
         color: var(--bs-secondary-color);
     }
 
-    // A product without combination names its only line by what it is, not by a title of its own.
     &.bo-combinations-grid--simple .bo-combinations-grid__name {
         font-weight: 500;
         color: var(--bs-secondary-color);
@@ -3208,12 +3204,10 @@ tr.bo-order-row--urgent {
     }
 }
 
-// The tax rule above the grid: as wide as a rule's title needs, not half the card.
 .bo-combinations-tax-rule {
     max-width: 16.25rem;
 }
 
-// The other prices of a product: one card, a tab each, a dot on a tab whose form holds changes.
 .bo-other-prices {
     // At the foot of the header, whose border is their line; the theme's margin under .nav-tabs would lift them off it.
     .bo-other-prices__tabs {
@@ -3548,7 +3542,6 @@ form[data-bo-unsaved-changes-dirty] .bo-group-prices__discard {
     overscroll-behavior: contain;
 }
 
-// The fields of a panel grouped by subject, as in the fold of a combination.
 .bo-side-panel__section {
     min-width: 0;
     margin: 0 0 .75rem;
@@ -3632,9 +3625,8 @@ form[data-bo-unsaved-changes-dirty] .bo-group-prices__discard {
     transform: translateX(-100%);
 }
 
-// The quantity rules of a combination, in the fold of its line and in the default
-// combination's card: fields wide enough for "0,125" or a unit's name, wrapping
-// on a phone instead of widening the grid.
+// The quantity rules of a combination, in the fold of its line: fields wide enough
+// for "0,125" or a unit's name, wrapping on a phone instead of widening the grid.
 .bo-quantity-rules {
     display: flex;
     flex-wrap: wrap;

@@ -47,8 +47,7 @@ export default class extends Controller {
         }
         // Heard once the submit has gone through the listeners of the form, which may hold it back.
         document.addEventListener('submit', this.onSubmit);
-        // A field placed outside its form and given to it by its `form` attribute (a box in a card
-        // header) never sends its events through the form.
+        // A field outside its form (form="…") does not bubble through it.
         this.element.addEventListener('input', this.onOutsideFieldChange);
         this.element.addEventListener('change', this.onOutsideFieldChange);
     }

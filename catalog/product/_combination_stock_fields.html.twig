@@ -17,7 +17,6 @@
                class="form-control form-control-sm text-end mt-1{{ row.out_of_stock_policy != limited_policy ? ' d-none' }}" aria-label="{{ 'Preorder limit'|trans }}"
                data-bo-stock-policy-target="limit" data-bo-combination-band-target="preorderLimit" data-bulk-field="preorder-limit" data-testid="combinations-preorder-limit-{{ row.id }}">
     </div>
-    {# While the stock is low, bo-combination-band moves the date into the low stock line and says so here. #}
     <div data-bo-combination-band-target="restockHome">
         <label class="form-label small" for="{{ field_id }}-restock-date" data-bo-combination-band-target="restockLabel">{{ 'Restock date'|trans }}</label>
         <input type="date" id="{{ field_id }}-restock-date" name="restock_date[{{ row.id }}]" value="{{ row.restock_date }}" class="form-control form-control-sm"

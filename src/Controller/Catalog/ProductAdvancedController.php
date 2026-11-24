@@ -403,8 +403,7 @@ final class ProductAdvancedController
      * The price of a combination brought to its reference unit, while the merchant types:
      * the price excluding taxes of the row is taxed with the rule of the product, as the
      * shop shows it, and the core divides. Values not saved yet, so read from the query.
-     * With the minimum, the step and the decimals, it also writes the line the grid shows
-     * under the combination: how it is sold, then that price.
+     * With the minimum, the step and the decimals, also the line shown under the combination.
      */
     #[Route('/admin/product/calculate-reference-price', name: 'admin.product.calculate-reference-price', methods: ['GET'])]
     public function calculateReferencePrice(Request $request): JsonResponse
@@ -831,8 +830,7 @@ final class ProductAdvancedController
         $useExchangeRate = (int) $form->get('use_exchange_rate', 0);
         $defaultPse = (int) $form->get('default_pse', 0);
 
-        // Every field of the grid is named by the id of its combination (price[12]), so the
-        // order of the lines carries no meaning: a line moved without reload keeps its values.
+        // Every field is named by its combination (price[12]): the order of the lines does not matter.
         $ids = array_values($form->all('product_sale_element_id'));
         $refs = $form->all('reference');
         $prices = $form->all('price');
@@ -842,8 +840,7 @@ final class ProductAdvancedController
         $eans = $form->all('ean_code');
         $mpns = $form->all('mpn');
         $manufacturerBrands = $form->all('manufacturer_brand_id');
-        // A project copy of the folded fields made before they were named by id still sends
-        // them by place (mpn[]): a list, which a field named by id never is (no id is 0).
+        // An older copy of _combination_more_fields posts these two by place (mpn[]): a list, never keyed by an id.
         $mpnsByPlace = array_is_list($mpns);
         $manufacturerBrandsByPlace = array_is_list($manufacturerBrands);
         $onsale = $form->all('onsale');
@@ -988,7 +985,6 @@ final class ProductAdvancedController
             ? $this->groupPricesContextBuilder->build($context['pse_rows'], $context['currency']['id'], $request->getLocale())
             : null;
         // The grid prices every sale unit at once: it is read-only for a restricted administrator.
-        // The tab of the "Other prices" block a save of one of its forms comes back to, read from the page itself.
         $context['other_prices_tab'] = (string) ($request->query->get('other_prices_tab') ?? $this->requestStack->getMainRequest()?->query->get('other_prices_tab', ''));
         $context['group_prices_can_edit'] = !$this->restricted->isRestricted()
             && $this->access->can(AdminResources::CUSTOMER_GROUP, AccessManager::UPDATE)

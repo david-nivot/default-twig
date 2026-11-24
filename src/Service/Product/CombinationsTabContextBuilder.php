@@ -124,7 +124,7 @@ final readonly class CombinationsTabContextBuilder
             $row['sellable_state'] = $this->sellableState($row);
             $row['sellable_available'] = $row['sellable'] !== null ? $this->sellableAvailable($row) : null;
             $row['low_stock_threshold_applied'] = $row['low_stock_threshold'] ?? $shopThreshold;
-            // The same comparison as the core's low stock alert: at or under the threshold.
+            // Same rule as the core alert.
             $row['low_stock'] = $row['sellable'] !== null && $row['quantity'] <= $row['low_stock_threshold_applied'];
             $rows[] = $row;
         }
@@ -225,10 +225,7 @@ final readonly class CombinationsTabContextBuilder
     }
 
     /**
-     * How what a combination may still sell compares with its stock, for the icon at the end
-     * of its stock line: without limit, on preorder (nothing in stock, the limit open), none
-     * left, held (the carts or the preorder limit make it differ from the stock), or the same
-     * as the stock. Null when the figures were not read (a bundle).
+     * unlimited, pre, none, held (differs from the stock) or sync; null for a bundle.
      *
      * @param array<string, mixed> $row
      */
@@ -256,7 +253,7 @@ final readonly class CombinationsTabContextBuilder
     }
 
     /**
-     * A combination sold by the piece sells whole pieces: half of one left under a preorder limit is none.
+     * Whole pieces for a combination sold by the piece.
      *
      * @param array<string, mixed> $row
      */

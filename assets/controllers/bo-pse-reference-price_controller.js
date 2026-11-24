@@ -24,7 +24,7 @@ export default class extends Controller {
         this.watched.forEach((input) => input.addEventListener('change', this.onPriceChange));
         // The server rendered the line of the saved values: a reset gives it back, without a request.
         this.initialLine = this.hasLineTarget ? { hidden: this.lineTarget.hidden, html: this.hasLineTextTarget ? this.lineTextTarget.innerHTML : '' } : null;
-        // "Cancel the changes" resets the form: the browser puts the values back after the event.
+        // Values are restored after the reset event.
         this.onReset = () => setTimeout(() => this.restoreInitialLine());
         this.resetForm = this.form;
         this.resetForm?.addEventListener('reset', this.onReset);

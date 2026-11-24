@@ -12,9 +12,7 @@ const PRICE_PAIRS = {
 /**
  * Bulk edit of the combinations grid: a side panel fills the fields of the ticked combinations, then
  * closes. Nothing is saved, the grid's save bar does that. Row fields get a `change` event, never
- * `input`, which would have the price controller convert the row again on submit. An empty field
- * of the panel leaves the rows as they are: a value the rows may hold empty (no unit) is chosen in
- * the panel as `__none`.
+ * `input`, which would have the price controller convert the row again on submit. `__none` empties a row field.
  *
  * Usage:
  *   <div data-controller="bo-bulk-select bo-combinations-bulk-edit"

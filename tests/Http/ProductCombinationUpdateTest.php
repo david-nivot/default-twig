@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Tests\Http;
 use BackOfficeDefaultTwigBundle\Tests\Support\CombinationGridFields;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Thelia\Model\AttributeTemplate;
 use Thelia\Model\ConfigQuery;
 use Thelia\Model\Currency;
 use Thelia\Model\CurrencyQuery;
@@ -495,6 +496,21 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
 
         $guard = (string) file_get_contents(\dirname(__DIR__, 2).'/assets/controllers/bo-unsaved-changes_controller.js');
         self::assertStringContainsString('outsideFieldChanged', $guard, 'A box given to the grid by form= marks it as changed.');
+    }
+
+    public function testTheHintOfAProductWithoutCombinationSitsBeforeTheButtonThatAddsOne(): void
+    {
+        $this->loginFullAdmin();
+        [$product] = $this->productWithoutCombination();
+        $template = $this->factory->template();
+        $attribute = $this->factory->attribute();
+        $this->factory->attributeAv($attribute);
+        (new AttributeTemplate())->setTemplateId($template->getId())->setAttributeId($attribute->getId())->setPosition(1)->save($this->getPropelConnection());
+        $product->setTemplateId($template->getId())->save($this->getPropelConnection());
+
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+
+        self::assertCount(1, $crawler->filter('[data-testid="combinations-toolbar"] [data-testid="combinations-empty-hint"]:not(.alert) + [data-testid="combination-create-btn"]'), 'Plain text, right before the button.');
     }
 
     public function testTheTaxRuleIsOneNarrowFieldAboveTheGrid(): void

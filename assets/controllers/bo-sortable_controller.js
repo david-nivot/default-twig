@@ -10,8 +10,7 @@ import { tokenBody } from '../lib/post-request.js';
  * configured URL (the token in the request body), then reloads the page so the server-rendered table
  * reflects the persisted order.
  *
- * With `json` set, the URL answers in JSON and the page is not reloaded, so typed fields are kept
- * (they are named by the id of their row, never by its place). A failed move reveals `failureElement` and stops the moves after it, whose positions would be wrong.
+ * With `json` set, the URL answers in JSON and the page is not reloaded, so typed fields are kept. A failed move reveals `failureElement` and stops the moves after it, whose positions would be wrong.
  * `disabled` freezes dragging while the handles serve another use (a selection box).
  */
 export default class extends Controller {

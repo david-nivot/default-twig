@@ -2,19 +2,8 @@ import { Controller } from '@hotwired/stimulus';
 import { Tooltip } from 'bootstrap';
 
 /**
- * Keeps the lines of one combination of the grid (its <tbody>) in step with what the merchant
- * types, before anything is saved:
- * - the icon at the end of the stock line: what the combination may still sell (its stock and
- *   what its sale mode allows below zero, less what the carts held when the page was read),
- *   colored when it differs from the stock;
- * - the unit after the stock of a combination sold by measure;
- * - the low stock line, shown at or under the threshold (its own, or the shop's), into which the
- *   restock date moves from the fold, and back. The field keeps its name: it is named by its
- *   combination, so its place in the form does not matter.
- *
- * The server renders the first state with the same wordings, read from the table
- * (`data-combination-band-texts`). The sellable quantity follows the core's formula; the
- * figures saved decide in the end.
+ * Live state of one combination (<tbody>): sellable icon, stock unit, low stock line (which takes the restock date).
+ * Wordings come from the table (`data-combination-band-texts`), the same the server renders with.
  */
 const ICONS = { unlimited: 'bi-infinity', pre: 'bi-clock-history', none: 'bi-cart-x', held: 'bi-cart-fill', sync: 'bi-cart' };
 
@@ -37,7 +26,7 @@ export default class extends Controller {
     connect() {
         this.texts = JSON.parse(this.element.closest('table')?.dataset.combinationBandTexts ?? '{}');
         this.sync = this.sync.bind(this);
-        // "Cancel the changes" resets the form: the browser puts the values back after the event.
+        // Values are restored after the reset event.
         this.onReset = () => setTimeout(this.sync);
         this.form = this.element.closest('form');
         this.element.addEventListener('input', this.sync);
@@ -52,7 +41,6 @@ export default class extends Controller {
         this.form?.removeEventListener('reset', this.onReset);
     }
 
-    /** "Edit" on the line of the reference price: opens the fold on the quantities and units. */
     openRules() {
         const toggle = this.element.querySelector('.bo-combinations-grid__more');
         if (toggle && toggle.getAttribute('aria-expanded') !== 'true') {
@@ -132,7 +120,7 @@ export default class extends Controller {
 
         const own = this.hasThresholdTarget ? this.number(this.thresholdTarget.value) : null;
         const threshold = own ?? this.shopThresholdValue;
-        // The same comparison as the core's low stock alert: at or under the threshold.
+        // Same rule as the core alert.
         const low = stock <= threshold;
         this.lowLineTarget.hidden = !low;
 
@@ -164,7 +152,6 @@ export default class extends Controller {
         }
     }
 
-    /** A number field reads "" when empty: null, never 0. */
     number(value) {
         const trimmed = String(value ?? '').trim().replace(',', '.');
 
