@@ -139,7 +139,7 @@
                         out2: 'Out of stock, preorder open, %limit% at most.'|trans,
                     } %}
                     <div class="table-responsive bo-combinations-scroll">
-                        <table class="table table-borderless bo-combinations-grid{{ simple ? ' bo-combinations-grid--simple' }}" data-testid="combinations-table"
+                        <table class="table table-borderless bo-card-table bo-combinations-grid{{ simple ? ' bo-combinations-grid--simple' }}" data-testid="combinations-table"
                                data-combination-band-texts="{{ band_texts|json_encode|e('html_attr') }}"
                                {%- if not simple %}
                                data-controller="bo-sortable" data-bo-combinations-bulk-edit-target="sortable"
@@ -698,16 +698,7 @@
         </div>
     </div>
 
-    {% if sale_unit_values|default(null) is not null %}
-        {{ include('@BackOfficeDefaultTwig/catalog/product/_sale_unit_values.html.twig') }}
-    {% endif %}
-
-    {% if group_prices|default(null) is not null %}
-        {{ include('@BackOfficeDefaultTwig/catalog/product/_group_prices.html.twig') }}
-    {% endif %}
-
-    {{ render(controller('BackOfficeDefaultTwigBundle\\Controller\\Catalog\\ProductPriceDisplayController::panel', { product_id: product.id })) }}
-    {% if is_granted('VIEW', 'admin.pricing') and is_granted('VIEW', 'admin.customer') %}{{ render(controller('BackOfficeDefaultTwigBundle\\Controller\\Catalog\\ProductEffectivePriceController::panel', { product_id: product.id, currency_id: currency.id })) }}{% endif %}
+    {{ include('@BackOfficeDefaultTwig/catalog/product/_other_prices.html.twig') }}
 
     {% component 'BoConfirmDialog' with {
         id: 'pse-delete-modal',

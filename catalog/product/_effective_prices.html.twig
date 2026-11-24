@@ -1,15 +1,21 @@
-{#- What a customer, or a visitor, would be charged for the combinations of the product, and why. Read only. -#}
-{% set page_query = { product_id: product_id, current_tab: 'pse', combinations_currency_id: currency.id } %}
-<div class="card mb-3" data-testid="effective-prices-section">
-    <div class="card-header">
-        <h2 class="h6 mb-1">{{ 'Effective prices'|trans }}</h2>
-        <p class="small text-muted mb-0">{{ 'What the shop charges a customer for each combination, price lists included. Prices are without taxes, in %currency%.'|trans({ '%currency%': currency.code }) }}</p>
+{#- What a customer, or a visitor, would be charged for the combinations of the product, and why. Read only.
+    A tab of the "Other prices" block (_other_prices.html.twig). -#}
+{% set page_query = { product_id: product_id, current_tab: 'pse', combinations_currency_id: currency.id, other_prices_tab: 'effective' } %}
+<div class="bo-other-prices__panel" data-testid="effective-prices-section">
+    <div class="bo-other-prices__head">
+        <h2 class="visually-hidden">{{ 'Effective prices'|trans }}</h2>
+        <p class="small text-muted mb-0">{{ 'What the shop charges a customer for each combination as saved, price lists included. Prices include taxes, in %currency%; the price without taxes is under it.'|trans({ '%currency%': currency.code }) }}</p>
     </div>
-    <div class="card-body">
+    <p class="alert alert-warning small align-items-baseline gap-2 py-2 px-3 bo-effective-prices__unsaved" role="status" data-testid="effective-prices-unsaved">
+        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+        <span>{{ 'Some changes on this page are not saved yet: the prices below do not take them into account.'|trans }}</span>
+    </p>
+    <div>
         <form method="get" action="{{ path('admin.products.update') }}" class="row g-2 align-items-end" data-testid="effective-prices-search-form">
             <input type="hidden" name="product_id" value="{{ product_id }}">
             <input type="hidden" name="current_tab" value="pse">
             <input type="hidden" name="combinations_currency_id" value="{{ currency.id }}">
+            <input type="hidden" name="other_prices_tab" value="effective">
             <div class="col-md-6">
                 <label class="form-label" for="effective-customer-q">{{ 'Search a customer (name, e-mail or reference, 3 characters at least)'|trans }}</label>
                 <input type="search" name="effective_customer_q" id="effective-customer-q" class="form-control" value="{{ search }}" maxlength="100" autocomplete="off" data-testid="effective-prices-search">
@@ -57,11 +63,11 @@
                     <thead class="table-light">
                         <tr>
                             <th>{{ 'Combination'|trans }}</th>
-                            <th class="text-end">{{ 'Catalog price'|trans }}</th>
-                            <th class="text-end">{{ 'Resolved price'|trans }}</th>
-                            <th>{{ 'Source'|trans }}</th>
+                            <th class="text-end">{{ 'Catalog price incl. taxes'|trans }}</th>
+                            <th class="text-end">{{ 'Price paid incl. taxes'|trans }}</th>
+                            <th>{{ 'Why'|trans }}</th>
                             <th class="text-center">{{ 'Can be bought'|trans }}</th>
-                            <th>{{ 'Tiers'|trans }}</th>
+                            <th>{{ 'Tiers incl. taxes'|trans }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -71,18 +77,21 @@
                                     <small>{{ row.label == 'default' ? 'Default combination'|trans : row.label }}</small>
                                     <small class="d-block text-muted">{{ row.ref }}</small>
                                 </td>
-                                <td class="text-end" data-testid="effective-prices-catalog-{{ row.id }}">
-                                    {{ row.catalog_price ?? '-' }}
-                                    {% if row.catalog_promo_price is not null %}<small class="d-block text-muted">{{ row.catalog_promo_price }}</small>{% endif %}
+                                <td class="text-end">
+                                    <span data-testid="effective-prices-catalog-{{ row.id }}">{{ row.catalog_price_with_tax ?? '-' }}{% if row.catalog_promo_price is not null %} <small class="d-block text-muted">{{ row.catalog_promo_price_with_tax ?? '-' }}</small>{% endif %}</span>
+                                    <small class="d-block text-muted" data-testid="effective-prices-catalog-untaxed-{{ row.id }}">{{ 'excl. taxes'|trans }} {{ row.catalog_price ?? '-' }}{% if row.catalog_promo_price is not null %} {{ row.catalog_promo_price }}{% endif %}</small>
                                 </td>
-                                <td class="text-end" data-testid="effective-prices-price-{{ row.id }}">{{ row.price ?? '-' }}</td>
+                                <td class="text-end">
+                                    <span class="fw-semibold" data-testid="effective-prices-price-{{ row.id }}">{{ row.price_with_tax ?? '-' }}</span>
+                                    {% if row.price is not null %}<small class="d-block text-muted" data-testid="effective-prices-price-untaxed-{{ row.id }}">{{ 'excl. taxes'|trans }} {{ row.price }}</small>{% endif %}
+                                </td>
                                 <td data-testid="effective-prices-source-{{ row.id }}"><small>{{ row.source ?? '-' }}</small></td>
                                 <td class="text-center" data-testid="effective-prices-purchasable-{{ row.id }}">
                                     {% if prices.status != 'shown' %}{{ 'No'|trans }}{% elseif row.price is null %}-{% elseif row.purchasable %}{{ 'Yes'|trans }}{% else %}{{ 'No'|trans }}{% endif %}
                                 </td>
                                 <td data-testid="effective-prices-tiers-{{ row.id }}">
                                     {% for tier in row.tiers %}
-                                        <small class="d-block">{{ tier.quantity }}+ : {{ tier.price }}</small>
+                                        <small class="d-block">{{ tier.quantity }}+ : {{ tier.price_with_tax ?? '-' }} <span class="text-muted">({{ 'excl. taxes'|trans }} {{ tier.price }})</span></small>
                                     {% else %}
                                         <small class="text-muted">-</small>
                                     {% endfor %}

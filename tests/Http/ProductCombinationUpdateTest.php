@@ -508,6 +508,51 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         self::assertCount(0, $form->filter('.row [data-testid="combinations-tax-rule"]'));
     }
 
+    public function testTheOtherPricesAreOneCardWithATabEachWhoseFormsAreWatched(): void
+    {
+        $this->loginFullAdmin();
+        [$product] = $this->productWithACombination();
+
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+
+        $block = $crawler->filter('[data-testid="other-prices-section"][data-controller="bo-other-prices"]');
+        self::assertCount(1, $block, 'One card under the grid.');
+        self::assertSame('Other prices', $block->filter('.card-header > h2.h5')->text(), 'A card title, as on the other cards of the back office.');
+        self::assertCount(1, $block->filter('.card-header > h2 + ul.nav-tabs[data-testid="other-prices-tabs"]'), 'The tabs at the foot of the header, under the title.');
+        $tabs = $block->filter('[data-testid="other-prices-tabs"] [role="tab"]');
+        self::assertGreaterThanOrEqual(2, $tabs->count());
+        self::assertSame(['true'], array_values(array_unique(array_filter($tabs->each(static fn (Crawler $tab): string => (string) $tab->attr('aria-selected')), static fn (string $selected): bool => $selected === 'true'))), 'One tab is open.');
+        self::assertSame('true', $tabs->first()->attr('aria-selected'), 'The first one, by default.');
+        foreach (['display' => 'price-display-mode', 'effective' => 'effective-prices'] as $key => $section) {
+            self::assertCount(1, $block->filter(\sprintf('[data-testid="other-prices-panel-%s"][role="tabpanel"] [data-testid="%s-section"]', $key, $section)), $key);
+        }
+        self::assertCount(0, $crawler->filter('.card [data-testid="price-display-mode-section"].card, .card[data-testid="effective-prices-section"]'), 'No card in the card.');
+        foreach (['price-display-mode-form', 'group-prices-form', 'sale-unit-values-form'] as $form) {
+            $node = $block->filter(\sprintf('form[data-testid="%s"]', $form));
+            if ($node->count() > 0) {
+                self::assertSame('form', $node->attr('data-bo-unsaved-changes-target'), 'Leaving the page with '.$form.' changed asks first.');
+            }
+        }
+        self::assertSame('effective', $block->filter('form[data-testid="effective-prices-search-form"] input[name="other_prices_tab"]')->attr('value'), 'A search comes back to its tab.');
+
+        $display = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId().'&other_prices_tab=display');
+        self::assertSame('true', $display->filter('[data-testid="other-prices-tab-display"]')->attr('aria-selected'), 'The page opens the tab it is asked for.');
+        self::assertStringContainsString('active', (string) $display->filter('[data-testid="other-prices-panel-display"]')->attr('class'));
+    }
+
+    public function testASaveOfTheDisplayOfThePricesComesBackToItsTab(): void
+    {
+        $this->loginFullAdmin();
+        [$product] = $this->productWithACombination();
+        $token = (string) $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId())
+            ->filter('form[data-testid="price-display-mode-form"] input[name="_token"]')->attr('value');
+
+        $this->client->request('POST', '/admin/product/price-display-mode/save', ['_token' => $token, 'product_id' => $product->getId(), 'price_display_mode' => '']);
+
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('other_prices_tab=display', (string) $this->client->getResponse()->headers->get('Location'));
+    }
+
     public function testOneButtonOpensTheFoldOfEveryCombination(): void
     {
         $this->loginFullAdmin();

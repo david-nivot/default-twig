@@ -988,6 +988,8 @@ final class ProductAdvancedController
             ? $this->groupPricesContextBuilder->build($context['pse_rows'], $context['currency']['id'], $request->getLocale())
             : null;
         // The grid prices every sale unit at once: it is read-only for a restricted administrator.
+        // The tab of the "Other prices" block a save of one of its forms comes back to, read from the page itself.
+        $context['other_prices_tab'] = (string) ($request->query->get('other_prices_tab') ?? $this->requestStack->getMainRequest()?->query->get('other_prices_tab', ''));
         $context['group_prices_can_edit'] = !$this->restricted->isRestricted()
             && $this->access->can(AdminResources::CUSTOMER_GROUP, AccessManager::UPDATE)
             && $this->access->can(self::RESOURCE, AccessManager::UPDATE);

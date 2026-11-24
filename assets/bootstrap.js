@@ -26,6 +26,7 @@ import BoCombinationCreationController from './controllers/bo-combination-creati
 import BoCombinationBandController from './controllers/bo-combination-band_controller.js';
 import BoCombinationDefaultController from './controllers/bo-combination-default_controller.js';
 import BoCombinationFoldsController from './controllers/bo-combination-folds_controller.js';
+import BoOtherPricesController from './controllers/bo-other-prices_controller.js';
 import BoCombinationsBulkEditController from './controllers/bo-combinations-bulk-edit_controller.js';
 import BoCouponAttributePickerController from './controllers/bo-coupon-attribute-picker_controller.js';
 import BoCouponBuyXGetYController from './controllers/bo-coupon-buy-x-get-y_controller.js';
@@ -108,6 +109,7 @@ app.register('bo-combination-creation', BoCombinationCreationController);
 app.register('bo-combination-band', BoCombinationBandController);
 app.register('bo-combination-default', BoCombinationDefaultController);
 app.register('bo-combination-folds', BoCombinationFoldsController);
+app.register('bo-other-prices', BoOtherPricesController);
 app.register('bo-combinations-bulk-edit', BoCombinationsBulkEditController);
 app.register('bo-coupon-attribute-picker', BoCouponAttributePickerController);
 app.register('bo-coupon-buy-x-get-y', BoCouponBuyXGetYController);
