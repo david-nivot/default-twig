@@ -1,11 +1,10 @@
 {#
-    The quantity rules and units of one combination: in the fold of its line in the grid
-    (`keyed: true`, every field named by the id of the combination, like every field of the
-    grid) or in the default combination's form.
+    The quantity rules and units of one combination, in the fold of its line in the grid:
+    every field named by the id of the combination, like every field of the grid.
 
-    Expects: rule (a row of the tab context), unit_choices, decimals_choices, keyed.
+    Expects: rule (a row of the tab context), unit_choices, decimals_choices.
 #}
-{% set key = keyed ? '[' ~ rule.id ~ ']' : '' %}
+{% set key = '[' ~ rule.id ~ ']' %}
 {% set dom_id = 'pse-' ~ rule.id ~ '-' %}
 <div class="bo-quantity-rules" data-testid="quantity-rules-{{ rule.id }}">
     <div class="bo-quantity-rules__field">

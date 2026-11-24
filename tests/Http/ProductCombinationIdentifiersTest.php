@@ -36,7 +36,6 @@ use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
 final class ProductCombinationIdentifiersTest extends WebIntegrationTestCase
 {
     private const COMBINATIONS_URL = '/admin/product/combinations/update';
-    private const DEFAULT_PRICE_URL = '/admin/product/default-price/update';
 
     private AdminSessionInjector $injector;
 
@@ -250,27 +249,27 @@ final class ProductCombinationIdentifiersTest extends WebIntegrationTestCase
         self::assertCount(0, $row->filter('[name$="[]"]:not([name="product_sale_element_id[]"])'), 'No field of the grid is read by its place.');
     }
 
-    public function testTheDefaultFormSavesThePartNumberAndTheManufacturerThenClearsThem(): void
+    public function testAProductWithoutCombinationSavesThePartNumberAndTheManufacturerThenClearsThem(): void
     {
         $this->loginFullAdmin();
         $brand = $this->factory->brand();
         [$product, $pse] = $this->productWithoutCombination();
 
-        $this->postDefault($product, $pse, ['mpn' => ' SM-G991B ', 'manufacturer_brand_id' => $brand->getId()]);
+        $this->postSimpleProduct($product, $pse, ['mpn' => ' SM-G991B ', 'manufacturer_brand_id' => $brand->getId()]);
         self::assertSame('SM-G991B', $this->fresh($pse)->getMpn());
         self::assertSame($brand->getId(), $this->fresh($pse)->getManufacturerBrandId());
 
-        $this->postDefault($product, $pse, ['mpn' => '', 'manufacturer_brand_id' => 0]);
+        $this->postSimpleProduct($product, $pse, ['mpn' => '', 'manufacturer_brand_id' => 0]);
         self::assertNull($this->fresh($pse)->getMpn());
         self::assertNull($this->fresh($pse)->getManufacturerBrandId(), 'Back to the brand of the product.');
     }
 
-    public function testTheDefaultFormRefusesAnElevenDigitCodeWithTheLengthsAccepted(): void
+    public function testAProductWithoutCombinationRefusesAnElevenDigitCodeWithTheLengthsAccepted(): void
     {
         $this->loginFullAdmin();
         [$product, $pse] = $this->productWithoutCombination();
 
-        $this->postDefault($product, $pse, ['ean_code' => '03600029145', 'quantity' => 99]);
+        $this->postSimpleProduct($product, $pse, ['ean_code' => '03600029145', 'quantity' => 99]);
 
         $refusals = $this->flashes()['danger'];
         self::assertCount(1, $refusals);
@@ -330,16 +329,14 @@ final class ProductCombinationIdentifiersTest extends WebIntegrationTestCase
     /**
      * @param array<string, mixed> $values
      */
-    private function postDefault(Product $product, ProductSaleElements $pse, array $values): void
+    private function postSimpleProduct(Product $product, ProductSaleElements $pse, array $values): void
     {
-        $this->client->request('POST', self::DEFAULT_PRICE_URL, $values + [
-            '_token' => $this->tokenOf($product, 'default-pse-form'),
+        $this->client->request('POST', self::COMBINATIONS_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
             'product_id' => $product->getId(),
-            'product_sale_element_id' => $pse->getId(),
-            'reference' => $pse->getRef(),
             'tax_rule' => $product->getTaxRuleId(),
-            'quantity' => 7,
-        ]);
+            'default_pse' => $pse->getId(),
+        ] + CombinationGridFields::of([[$pse, $values + ['reference' => $pse->getRef(), 'quantity' => 7]]]));
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
     }

@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use BackOfficeDefaultTwigBundle\Tests\Support\CombinationGridFields;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Model\ConfigQuery;
@@ -43,7 +44,7 @@ use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
 final class ProductCombinationUpdateTest extends WebIntegrationTestCase
 {
     private const COMBINATIONS_URL = '/admin/product/combinations/update';
-    private const DEFAULT_PRICE_URL = '/admin/product/default-price/update';
+    private const FORMER_DEFAULT_PRICE_URL = '/admin/product/default-price/update';
 
     private AdminSessionInjector $injector;
 
@@ -454,67 +455,62 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         self::assertCount(0, $one->filter('[data-testid="combinations-folds-toggle"]'), 'A product without combination has one fold: nothing to open in bulk.');
     }
 
-    public function testTheDefaultPriceCannotBeUpdatedThroughAGet(): void
+    public function testTheFormerAddressOfTheDefaultPriceIsGone(): void
     {
         $this->loginFullAdmin();
         [$product, $pse] = $this->productWithoutCombination();
 
-        $this->client->request('GET', self::DEFAULT_PRICE_URL, [
+        $this->client->request('POST', self::FORMER_DEFAULT_PRICE_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
             'product_id' => $product->getId(),
             'product_sale_element_id' => $pse->getId(),
             'quantity' => 43,
             'price' => 0.01,
         ]);
 
-        $this->assertNotSaved();
+        self::assertSame(404, $this->client->getResponse()->getStatusCode());
         $this->assertCombinationUntouched($pse);
     }
 
-    public function testTheDefaultPriceCannotBeUpdatedWithoutTheFormToken(): void
+    public function testAProductWithoutCombinationIsAGridOfOneLineSavedLikeTheGrid(): void
     {
         $this->loginFullAdmin();
         [$product, $pse] = $this->productWithoutCombination();
-        $token = $this->tokenOf($product, 'default-pse-form');
+        $id = (int) $pse->getId();
 
-        $this->client->request('POST', self::DEFAULT_PRICE_URL, [
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+
+        self::assertCount(0, $crawler->filter('form[data-testid="default-pse-form"]'), 'No form of its own any more.');
+        $form = $crawler->filter('form[data-testid="combinations-form"]');
+        self::assertCount(1, $form);
+        self::assertSame('/admin/product/combinations/update', $form->attr('action'));
+        self::assertCount(1, $form->filter('tbody[data-row-id]'), 'One line: the default combination.');
+        self::assertSame((string) $id, $form->filter('input[name="default_pse"][checked]')->attr('value'), 'It is sent as the default combination.');
+        self::assertCount(0, $form->filter('input[name="visible_sent"]'), 'It has no visibility box, so it does not say it sends one.');
+        self::assertCount(0, $form->filter(\sprintf('[name="visible[%d]"]', $id)));
+        self::assertCount(0, $form->filter('[data-bo-sortable-handle], [data-controller~="bo-sortable"]'), 'Nothing to reorder.');
+        self::assertCount(0, $form->filter('td.bo-combinations-grid__handle'), 'Nor a handle cell, which the style darkens on hover.');
+        self::assertCount(0, $crawler->filter('[data-testid="combinations-bulk-toggle"], [data-testid="combinations-bulk-panel"]'), 'Nothing to edit in bulk.');
+        self::assertCount(0, $form->filter(\sprintf('[data-testid="combinations-actions-%d"]', $id)));
+        $reference = $form->filter(\sprintf('input[name="reference[%d]"]', $id));
+        self::assertNotNull($reference->attr('readonly'), 'The reference follows the one of the product.');
+        self::assertSame($pse->getRef(), $reference->attr('value'), 'Read-only, it is still sent.');
+        self::assertCount(1, $form->filter(\sprintf('tr#combination-%d-more [data-testid="combinations-fold-stock-%d"]', $id, $id)), 'It has the fold of a combination.');
+
+        $this->client->request('POST', self::COMBINATIONS_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
             'product_id' => $product->getId(),
-            'product_sale_element_id' => $pse->getId(),
-            'quantity' => 43,
-            'price' => 0.01,
-        ]);
-        self::assertSame(403, $this->client->getResponse()->getStatusCode());
-
-        $this->client->request('POST', self::DEFAULT_PRICE_URL.'?_token='.$token, [
-            'product_id' => $product->getId(),
-            'product_sale_element_id' => $pse->getId(),
-            'quantity' => 43,
-            'price' => 0.01,
-        ]);
-        self::assertSame(403, $this->client->getResponse()->getStatusCode(), 'The token is read from the form body only.');
-
-        $this->assertCombinationUntouched($pse);
-    }
-
-    public function testTheDefaultPriceFormSavesAndKeepsAPriceItDidNotSend(): void
-    {
-        $this->loginFullAdmin();
-        [$product, $pse] = $this->productWithoutCombination();
-
-        $this->client->request('POST', self::DEFAULT_PRICE_URL, [
-            '_token' => $this->tokenOf($product, 'default-pse-form'),
-            'product_id' => $product->getId(),
-            'product_sale_element_id' => $pse->getId(),
-            'reference' => $pse->getRef(),
             'tax_rule' => $product->getTaxRuleId(),
-            'quantity' => 43,
-            'weight' => 1.5,
-        ]);
+            'default_pse' => $id,
+        ] + CombinationGridFields::of([[$pse, ['reference' => $pse->getRef(), 'quantity' => 43, 'weight' => 1.5]]]));
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
-        self::assertSame(43.0, (float) $this->freshSaleElement($pse)->getQuantity(), 'The submitted stock is saved.');
+        $fresh = $this->freshSaleElement($pse);
+        self::assertSame(43.0, (float) $fresh->getQuantity(), 'The submitted stock is saved.');
+        self::assertTrue((bool) $fresh->getIsDefault(), 'It stays the default combination.');
         $price = $this->storedPrice($pse);
-        self::assertSame(25.0, (float) $price->getPrice(), 'A price the form did not send keeps its stored value.');
-        self::assertSame(20.0, (float) $price->getPromoPrice(), 'A sale price the form did not send keeps its stored value.');
+        self::assertSame(25.0, (float) $price->getPrice(), 'A price the grid did not send keeps its stored value.');
+        self::assertSame(20.0, (float) $price->getPromoPrice(), 'A sale price the grid did not send keeps its stored value.');
     }
 
     public function testACombinationWithoutPriceShowsAnEmptyPriceThatMustBeFilled(): void
@@ -593,7 +589,7 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         self::assertSame(12.5, (float) $price->getPrice());
     }
 
-    public function testTheDefaultPriceFormWritesNoPriceOfZeroForAnUnpricedProduct(): void
+    public function testAProductWithoutAnyPriceShowsAnEmptyPriceAndIsNotSavedAtZero(): void
     {
         $this->loginFullAdmin();
         [$product, $pse] = $this->productWithoutCombination();
@@ -602,19 +598,14 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
             ->delete($this->getPropelConnection());
 
         $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
-        self::assertSame('', $crawler->filter('#default_pse_price')->attr('value'), 'A product without any price shows an empty price, not 0.');
+        self::assertSame('', $crawler->filter(\sprintf('#combination-%d-price', $pse->getId()))->attr('value'), 'A product without any price shows an empty price, not 0.');
 
-        $this->client->request('POST', self::DEFAULT_PRICE_URL, [
-            '_token' => $this->tokenOf($product, 'default-pse-form'),
+        $this->client->request('POST', self::COMBINATIONS_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
             'product_id' => $product->getId(),
-            'product_sale_element_id' => $pse->getId(),
-            'reference' => $pse->getRef(),
             'tax_rule' => $product->getTaxRuleId(),
-            'quantity' => 43,
-            'weight' => 1.5,
-            'price' => '',
-            'sale_price' => '',
-        ]);
+            'default_pse' => $pse->getId(),
+        ] + CombinationGridFields::of([[$pse, ['reference' => $pse->getRef(), 'quantity' => 43, 'weight' => 1.5, 'price' => '', 'sale_price' => '']]]));
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         self::assertNull($this->priceOf($pse), 'No price of 0 is written for a product saved without a price.');

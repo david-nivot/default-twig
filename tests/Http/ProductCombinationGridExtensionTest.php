@@ -199,6 +199,49 @@ final class ProductCombinationGridExtensionTest extends WebIntegrationTestCase
         self::assertCount(0, $fold->filter('[required]'), 'A required field out of sight would block the save without saying why.');
     }
 
+    public function testTheHooksOfTheGridAreNotRenderedForAProductWithoutCombination(): void
+    {
+        [$product] = $this->productWithoutCombination();
+        $rendered = [];
+        foreach ([self::HEADER_HOOK_EVENT => '<th>Module</th>', self::ROW_HOOK_EVENT => '<td rowspan="3">Module</td>', self::LINES_HOOK_EVENT => '<tr><td>Module</td></tr>', self::CAPTION_HOOK_EVENT => '<p>Module</p>'] as $event => $html) {
+            $this->listen($event, static function (HookRenderEvent $hook) use ($event, $html, &$rendered): void {
+                $rendered[] = $event;
+                $hook->add($html);
+            });
+        }
+
+        $form = $this->tab($product)->filter('form[data-testid="combinations-form"]');
+
+        self::assertCount(1, $form, 'The product is shown as a grid of one line.');
+        self::assertSame([], $rendered, 'Its modules write through the hooks of the product, not those of the combinations.');
+        $columns = array_sum($form->filter('thead > tr > th')->each(static fn (Crawler $cell): int => (int) ($cell->attr('colspan') ?? 1)));
+        self::assertSame(8, $columns);
+    }
+
+    public function testTheDetailsHooksOfAProductWithoutCombinationAreInItsFoldAndKnowTheCombination(): void
+    {
+        [$product, $pse] = $this->productWithoutCombination();
+        $id = (int) $pse->getId();
+
+        $tab = $this->tab($product);
+        self::assertCount(0, $tab->filter(\sprintf('[data-testid="combinations-fold-modules-%d"]', $id)), 'No section while no module adds a field.');
+
+        $contexts = [];
+        foreach (['pricing', 'details', 'promotion'] as $name) {
+            $this->listen('hook.'.TemplateDefinition::BACK_OFFICE.'.product.details-'.$name.'-form', static function (HookRenderEvent $hook) use ($name, &$contexts): void {
+                $contexts[$name] = [$hook->getArgument('product'), $hook->getArgument('pse'), $hook->getArgument('product_sale_element_id'), $hook->getArgument('location')];
+                $hook->add(\sprintf('<div class="mb-3" data-testid="module-%s"><input name="purchase_price_%s"></div>', $name, $name));
+            });
+        }
+
+        $section = $this->tab($product)->filter(\sprintf('form[data-testid="combinations-form"] tr#combination-%d-more [data-testid="combinations-fold-modules-%d"]', $id, $id));
+        self::assertCount(1, $section, 'The fields of the modules are a section of the fold, inside the form of the grid.');
+        self::assertSame(['module-pricing', 'module-details', 'module-promotion'], $section->filter('[data-testid^="module-"]')->each(static fn (Crawler $field): string => (string) $field->attr('data-testid')));
+        foreach (['pricing', 'details', 'promotion'] as $name) {
+            self::assertSame([$product->getId(), $id, $id, 'product_details_'.$name.'_form'], $contexts[$name] ?? null, $name.' knows the product and its combination.');
+        }
+    }
+
     public function testTheRowHookRendersNothingAroundACombinationItLeavesEmpty(): void
     {
         [$product] = $this->productWithACombination();
@@ -306,6 +349,18 @@ final class ProductCombinationGridExtensionTest extends WebIntegrationTestCase
         $this->factory->attributeCombination($combination, $this->factory->attributeAv($attribute, ['title' => 'Large']));
 
         return [$product, $combination];
+    }
+
+    /**
+     * @return array{Product, ProductSaleElements}
+     */
+    private function productWithoutCombination(): array
+    {
+        $product = $this->factory->product($this->factory->category(), $this->factory->taxRule(), $this->defaultCurrency(), ['basePrice' => 25.0]);
+        $pse = ProductSaleElementsQuery::create()->filterByProductId($product->getId())->findOne($this->getPropelConnection());
+        self::assertNotNull($pse);
+
+        return [$product, $pse];
     }
 
     private function defaultCurrency(): Currency

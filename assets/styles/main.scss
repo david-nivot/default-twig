@@ -3032,6 +3032,12 @@ tr.bo-order-row--urgent {
         color: var(--bs-secondary-color);
     }
 
+    // A product without combination names its only line by what it is, not by a title of its own.
+    &.bo-combinations-grid--simple .bo-combinations-grid__name {
+        font-weight: 500;
+        color: var(--bs-secondary-color);
+    }
+
     .bo-combinations-grid__more {
         --bs-btn-color: var(--bs-emphasis-color);
         --bs-btn-border-color: var(--bs-gray-400);

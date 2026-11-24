@@ -41,7 +41,6 @@ use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
 final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
 {
     private const COMBINATIONS_URL = '/admin/product/combinations/update';
-    private const DEFAULT_PRICE_URL = '/admin/product/default-price/update';
 
     private AdminSessionInjector $injector;
 
@@ -203,12 +202,12 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
         );
     }
 
-    public function testTheDefaultPricingFormSavesAndClearsTheStockSettings(): void
+    public function testAProductWithoutCombinationSavesAndClearsTheStockSettings(): void
     {
         $this->loginFullAdmin();
         [$product, $pse] = $this->productWithoutCombination();
 
-        $this->postDefault($product, $pse, [
+        $this->postSimpleProduct($product, $pse, [
             'out_of_stock_policy' => '2',
             'preorder_limit' => '8',
             'restock_date' => '2031-04-01',
@@ -222,7 +221,7 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
         self::assertSame('2031-04-01', $fresh->getRestockDate('Y-m-d'));
         self::assertSame(2.0, $fresh->getLowStockThreshold());
 
-        $this->postDefault($product, $pse, [
+        $this->postSimpleProduct($product, $pse, [
             'out_of_stock_policy' => '0',
             'preorder_limit' => '',
             'restock_date' => '',
@@ -236,12 +235,12 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
         self::assertNull($fresh->getLowStockThreshold());
     }
 
-    public function testTheDefaultPricingFormRefusesAnInvalidSettingAndSavesNothing(): void
+    public function testAProductWithoutCombinationRefusesAnInvalidSettingAndSavesNothing(): void
     {
         $this->loginFullAdmin();
         [$product, $pse] = $this->productWithoutCombination();
 
-        $this->postDefault($product, $pse, [
+        $this->postSimpleProduct($product, $pse, [
             'out_of_stock_policy' => '2',
             'preorder_limit' => '-4',
             'restock_date' => '',
@@ -294,8 +293,8 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
             self::assertSame($hidden, str_contains((string) $cell->filter('input[name^="preorder_limit["]')->attr('class'), 'd-none'));
 
             $form = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$withoutCombination->getId());
-            $block = $form->filter('form[data-testid="default-pse-form"] [data-controller="bo-stock-policy"]');
-            self::assertSame($limited, $block->attr('data-bo-stock-policy-limited-value'), 'the default form hands the controller the value of the limited mode');
+            $block = $form->filter(\sprintf('tr#combination-%d-more [data-controller="bo-stock-policy"]', $defaultPse->getId()));
+            self::assertSame($limited, $block->attr('data-bo-stock-policy-limited-value'), 'the line of a product without combination hands the controller the value of the limited mode');
             self::assertSame($hidden, str_contains((string) $block->filter('[data-bo-stock-policy-target="limit"]')->attr('class'), 'd-none'));
         }
     }
@@ -355,7 +354,7 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
         self::assertSame(9.5, $freshFirst->getLowStockThreshold());
     }
 
-    public function testTheDefaultPricingFormShowsTheStoredSettings(): void
+    public function testAProductWithoutCombinationShowsTheStoredSettings(): void
     {
         $this->loginFullAdmin();
         [$product, $pse] = $this->productWithoutCombination();
@@ -364,8 +363,8 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
 
         $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
 
-        self::assertSame('1', $crawler->filter('form[data-testid="default-pse-form"] select[name="out_of_stock_policy"] option[selected]')->attr('value'));
-        $threshold = $crawler->filter('form[data-testid="default-pse-form"] input[name="low_stock_threshold"]');
+        self::assertSame('1', $crawler->filter(\sprintf('form[data-testid="combinations-form"] select[name="out_of_stock_policy[%d]"] option[selected]', $pse->getId()))->attr('value'));
+        $threshold = $crawler->filter(\sprintf('form[data-testid="combinations-form"] input[name="low_stock_threshold[%d]"]', $pse->getId()));
         self::assertSame('4', $threshold->attr('value'));
         self::assertSame('0', $threshold->attr('placeholder'), 'A global threshold of 0 is shown as 0.');
     }
@@ -397,16 +396,14 @@ final class ProductCombinationStockSettingsTest extends WebIntegrationTestCase
     /**
      * @param array<string, string> $settings
      */
-    private function postDefault(Product $product, ProductSaleElements $pse, array $settings): void
+    private function postSimpleProduct(Product $product, ProductSaleElements $pse, array $settings): void
     {
-        $this->client->request('POST', self::DEFAULT_PRICE_URL, [
-            '_token' => $this->tokenOf($product, 'default-pse-form'),
+        $this->client->request('POST', self::COMBINATIONS_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
             'product_id' => $product->getId(),
-            'product_sale_element_id' => $pse->getId(),
-            'reference' => $pse->getRef(),
             'tax_rule' => $product->getTaxRuleId(),
-            'quantity' => 7,
-        ] + $settings);
+            'default_pse' => $pse->getId(),
+        ] + CombinationGridFields::of([[$pse, $settings + ['reference' => $pse->getRef(), 'quantity' => 7]]]));
     }
 
     private function loginFullAdmin(): void

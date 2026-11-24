@@ -279,7 +279,21 @@ zero and the restock (`catalog/product/_combination_stock_fields.html.twig`), th
 project that overrides the back office changes a section in a copy of its file, without copying the whole tab; the
 identifiers are where it adds its own fields. Every field of the grid is named by its combination (`mpn[12]`); a copy
 made when the part number and the manufacturer were still named by their place (`mpn[]`, `manufacturer_brand_id[]`)
-is still read, by place, for these two fields only.
+is still read, by place, for these two fields only. A copy of the whole tab that still names the fields of its lines
+by place (`quantity[]`, `price[]`) saves nothing, and the page says so: read by combination, its stock and weight
+would be written empty.
+
+Two routes are gone: `admin.product.combination.defaut-price.update`, since a product without combination is saved
+by the route of the grid, and `admin.product.combination.quantity-rules.add-to-all`, since bulk edit fills the
+quantities of the ticked combinations. `QuantityRuleSubmission::fromFields()` went with the first one.
+
+A product without combination is shown as a grid of one line, its default combination, saved by the same route as
+the grid; its reference follows the one of the product and cannot be typed. The hooks of the grid
+(`product.combinations-table-header`, `-table-row`, `product.combinations-row`, `product.before-combinations`,
+`product.combinations-list-caption`, `product.after-combinations`) are not rendered for it. Its modules add their
+fields through `product.details-pricing-form`, `product.details-details-form` and `product.details-promotion-form`
+(context `product`, `pse`, `product_sale_element_id`, `location`), rendered in that order in a section of its fold,
+inside the form of the grid: never a `<form>`, never a `required` field.
 
 What a module adds to the grid is sent with it. The theme does not save it: the module listens to
 `TheliaEvents::PRODUCT_UPDATE_PRODUCT_SALE_ELEMENT`, dispatched for each combination the grid saves (not for one left

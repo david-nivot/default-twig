@@ -80,26 +80,6 @@ final readonly class QuantityRuleSubmission
     }
 
     /**
-     * The rule of the default combination's form, whose fields are not arrays.
-     *
-     * @throws InvalidQuantityRuleException
-     * @throws UnreadableQuantityException
-     * @throws UnknownUnitCodeException
-     */
-    public function fromFields(InputBag $form): ?QuantityRule
-    {
-        $values = [];
-        foreach (self::FIELDS as $field) {
-            if ($form->has($field)) {
-                $value = $form->all()[$field];
-                $values[$field] = \is_scalar($value) ? (string) $value : '';
-            }
-        }
-
-        return $this->read($values);
-    }
-
-    /**
      * @param array<string, string> $values the posted fields, by name
      *
      * @throws InvalidQuantityRuleException

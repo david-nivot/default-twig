@@ -735,14 +735,6 @@ final class ProductAdvancedController
         return null;
     }
 
-    private function belongsToProduct(Product $product, int $combinationId): bool
-    {
-        return ProductSaleElementsQuery::create()
-            ->filterByProductId((int) $product->getId())
-            ->filterById($combinationId)
-            ->exists();
-    }
-
     /**
      * @return array<int, true> the ids of the combinations of the product, read without loading them
      */
@@ -1025,88 +1017,6 @@ final class ProductAdvancedController
         }
 
         return $combinations;
-    }
-
-    #[Route('/admin/product/default-price/update', name: 'admin.product.combination.defaut-price.update', methods: ['POST'])]
-    public function combinationDefaultPriceUpdate(Request $request, EventDispatcherInterface $events): Response
-    {
-        // What these write holds for every sale unit.
-        if ($denied = $this->restricted->denyIfRestricted(self::RESOURCE, AccessManager::UPDATE)) {
-            return $denied;
-        }
-
-        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
-            return $denied;
-        }
-
-        $form = $request->request;
-        $this->tokens->checkToken((string) $form->get('_token', ''));
-
-        $productId = (int) $form->get('product_id', 0);
-        $product = ProductQuery::create()->findPk($productId);
-        if ($product === null) {
-            return new RedirectResponse($this->urls->generate('admin.products.default'));
-        }
-
-        $pseId = (int) $form->get('product_sale_element_id', 0);
-        // Only a combination of this very product is written through its form.
-        if ($pseId > 0 && $this->belongsToProduct($product, $pseId)) {
-            $currency = (int) $form->get('currency', $this->defaultCurrencyId());
-            $storedPrice = $this->storedPrice($pseId, $currency);
-            if ($this->savesAFreePrice($form->get('price'), $storedPrice)) {
-                $this->noticeUnpricedCombinations($request, [$this->referenceOf($form->get('reference'), $pseId)]);
-
-                return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $productId, 'current_tab' => 'pse']));
-            }
-            $stockSettings = StockSettingsSubmission::fromInput(
-                $form->get('out_of_stock_policy'),
-                $form->get('preorder_limit'),
-                $form->get('restock_date'),
-                $form->get('low_stock_threshold'),
-            );
-            if (!$stockSettings->isValid()) {
-                $this->noticeInvalidStockSettings($request, [$this->referenceOf($form->get('reference'), $pseId)]);
-
-                return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $productId, 'current_tab' => 'pse']));
-            }
-            try {
-                $quantityRule = $this->quantityRules->fromFields($form);
-            } catch (InvalidQuantityRuleException|UnreadableQuantityException|UnknownUnitCodeException $refusal) {
-                $this->identifierNotices->refusedRow($this->referenceOf($form->get('reference'), $pseId), $refusal);
-
-                return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $productId, 'current_tab' => 'pse']));
-            }
-
-            $event = new ProductSaleElementUpdateEvent($product, $pseId);
-            $event
-                ->setReference((string) $form->get('reference', ''))
-                ->setPrice((float) ($form->get('price') ?? $storedPrice?->getPrice() ?? 0))
-                ->setCurrencyId($currency)
-                ->setWeight((float) $form->get('weight', 0))
-                ->setQuantity((float) $form->get('quantity', 0))
-                ->setSalePrice((float) ($form->get('sale_price') ?? $storedPrice?->getPromoPrice() ?? 0))
-                ->setOnsale($form->get('onsale') !== null ? 1 : 0)
-                ->setIsnew($form->get('isnew') !== null ? 1 : 0)
-                ->setIsdefault(true)
-                ->setEanCode((string) $form->get('ean_code', ''))
-                ->setMpn($form->has('mpn') ? (string) $form->get('mpn') : null)
-                ->setManufacturerBrandId($form->has('manufacturer_brand_id') ? (int) $form->get('manufacturer_brand_id') : null)
-                ->setQuantityRule($quantityRule)
-                ->setTaxRuleId((int) $form->get('tax_rule', (int) $product->getTaxRuleId()))
-                ->setFromDefaultCurrency((int) $form->get('use_exchange_rate', 0));
-            $stockSettings->applyTo($event);
-
-            try {
-                $events->dispatch($event, TheliaEvents::PRODUCT_UPDATE_PRODUCT_SALE_ELEMENT);
-                $this->identifierNotices->reportSharedCodes([$pseId]);
-            } catch (InvalidGtinException|InvalidMpnException $refusal) {
-                $this->identifierNotices->refused($refusal);
-            } catch (QuantityRefusedException|UnreadableQuantityException $refusal) {
-                $this->identifierNotices->refusedRow($this->referenceOf($form->get('reference'), $pseId), $refusal);
-            }
-        }
-
-        return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $productId, 'current_tab' => 'pse']));
     }
 
     /**

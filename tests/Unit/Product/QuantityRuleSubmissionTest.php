@@ -43,7 +43,6 @@ final class QuantityRuleSubmissionTest extends TestCase
         $form = new InputBag(['min_quantity' => [12 => '2'], 'quantity_step' => [12 => '6']]);
 
         self::assertNull($this->submission()->fromGrid($form, 13));
-        self::assertNull($this->submission()->fromFields(new InputBag(['quantity' => '7'])));
     }
 
     public function testEachRowReadsTheFieldsKeyedByItsOwnCombination(): void
@@ -68,7 +67,7 @@ final class QuantityRuleSubmissionTest extends TestCase
 
     public function testEmptyFieldsAreTheRulesOfAProductSoldByThePiece(): void
     {
-        $rule = $this->submission()->fromFields(new InputBag(['min_quantity' => '', 'quantity_step' => ' ', 'quantity_decimals' => '', 'unit_code' => '']));
+        $rule = $this->submission()->fromGrid(new InputBag(['min_quantity' => [12 => ''], 'quantity_step' => [12 => ' '], 'quantity_decimals' => [12 => ''], 'unit_code' => [12 => '']]), 12);
 
         self::assertNotNull($rule);
         self::assertSame([1.0, 1.0, 0, null], [$rule->minQuantity, $rule->step, $rule->decimals, $rule->unitCode]);

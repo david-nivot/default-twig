@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use BackOfficeDefaultTwigBundle\Tests\Support\CombinationGridFields;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
@@ -39,7 +40,6 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
 {
     private const GRID_URL = '/admin/product/combinations/update';
     private const FORMER_APPLY_TO_ALL_URL = '/admin/product/combinations/quantity-rules/add-to-all';
-    private const DEFAULT_URL = '/admin/product/default-price/update';
     private const PREVIEW_URL = '/admin/product/calculate-reference-price';
 
     private AdminSessionInjector $injector;
@@ -196,15 +196,15 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
         self::assertSame(7.0, (float) $this->fresh($combination)->getQuantity());
     }
 
-    public function testTheDefaultFormSavesTheRulesAndRefusesAnInvalidOne(): void
+    public function testAProductWithoutCombinationSavesTheRulesAndRefusesAnInvalidOne(): void
     {
         $this->loginFullAdmin();
         [$product, $pse] = $this->productWithoutCombination();
 
-        $this->postDefault($product, $pse, ['min_quantity' => '0,25', 'quantity_step' => '0,25', 'quantity_decimals' => '2', 'unit_code' => 'kg', 'reference_unit_quantity' => '1', 'unit_quantity' => '']);
+        $this->postSimpleProduct($product, $pse, ['min_quantity' => '0,25', 'quantity_step' => '0,25', 'quantity_decimals' => '2', 'unit_code' => 'kg', 'reference_unit_quantity' => '1', 'unit_quantity' => '']);
         self::assertSame(['0.250000', '0.250000', 2, null, '1.000000', 'kg'], $this->ruleOf($this->fresh($pse)));
 
-        $this->postDefault($product, $pse, ['quantity_decimals' => '4', 'quantity' => 99]);
+        $this->postSimpleProduct($product, $pse, ['quantity_decimals' => '4', 'quantity' => 99]);
         $refusals = $this->flashes()['danger'];
         self::assertCount(1, $refusals);
         self::assertStringContainsString($pse->getRef(), $refusals[0]);
@@ -287,7 +287,7 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
         $this->client->request('POST', self::GRID_URL, $grid);
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
 
-        $this->client->request('POST', self::DEFAULT_URL, ['_token' => $gridToken, 'product_id' => $default->getProductId(), 'product_sale_element_id' => $default->getId(), 'quantity_step' => '6', 'quantity' => 7]);
+        $this->client->request('POST', self::GRID_URL, ['_token' => $gridToken, 'product_id' => $default->getProductId(), 'default_pse' => $default->getId()] + CombinationGridFields::of([[$default, ['quantity_step' => '6', 'quantity' => 7]]]));
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
 
         self::assertSame('1.000000', $this->fresh($source)->getQuantityStep());
@@ -411,16 +411,14 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
     /**
      * @param array<string, mixed> $values
      */
-    private function postDefault(Product $product, ProductSaleElements $pse, array $values): void
+    private function postSimpleProduct(Product $product, ProductSaleElements $pse, array $values): void
     {
-        $this->client->request('POST', self::DEFAULT_URL, $values + [
-            '_token' => $this->tokenOf($product, 'default-pse-form'),
+        $this->client->request('POST', self::GRID_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
             'product_id' => $product->getId(),
-            'product_sale_element_id' => $pse->getId(),
-            'reference' => $pse->getRef(),
             'tax_rule' => $product->getTaxRuleId(),
-            'quantity' => 7,
-        ]);
+            'default_pse' => $pse->getId(),
+        ] + CombinationGridFields::of([[$pse, $values + ['reference' => $pse->getRef(), 'quantity' => 7]]]));
 
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
     }

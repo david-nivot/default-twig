@@ -116,9 +116,9 @@ final class ProductPriceCalculationTest extends WebIntegrationTestCase
     public function testThePriceFormOfAProductSendsItsProduct(): void
     {
         $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$this->product->getId());
-        $form = $crawler->filter('form[data-testid="default-pse-form"]');
+        $form = $crawler->filter('form[data-testid="combinations-form"]');
 
-        self::assertGreaterThan(0, $form->count(), 'A product without combinations shows its price form.');
+        self::assertGreaterThan(0, $form->count(), 'A product without combinations shows the grid of its one line.');
         self::assertSame((string) $this->product->getId(), $form->attr('data-bo-pse-price-with-tax-product-id-value'));
     }
 
