@@ -88,15 +88,15 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
 
         $crawler = $this->panel($product, $member);
 
-        self::assertSame('120.00', $this->text($crawler, 'effective-prices-catalog-'.$pse->getId()));
-        self::assertSame('96.00', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
+        self::assertSame('120.00 € incl. tax', $this->text($crawler, 'effective-prices-catalog-'.$pse->getId()));
+        self::assertSame('96.00 € incl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
         self::assertStringContainsString('Price list PRO', $this->text($crawler, 'effective-prices-source-'.$pse->getId()));
         self::assertSame('Yes', $this->text($crawler, 'effective-prices-purchasable-'.$pse->getId()));
         self::assertSame('Wholesalers', $this->text($crawler, 'effective-prices-group'));
 
         $crawler = $this->panel($product, $outsider);
 
-        self::assertSame('120.00', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
+        self::assertSame('120.00 € incl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
         self::assertStringContainsString('Catalog price', $this->text($crawler, 'effective-prices-source-'.$pse->getId()));
         self::assertStringNotContainsString('Price list', $this->text($crawler, 'effective-prices-source-'.$pse->getId()));
     }
@@ -115,8 +115,8 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
 
         $crawler = $this->panel($product, $member);
 
-        self::assertSame('excl. taxes '.number_format($resolved[(int) $pse->getId()]->chargedPrice(), 2, '.', ''), $this->text($crawler, 'effective-prices-price-untaxed-'.$pse->getId()), 'Under the price paid, the answer of the resolver, without taxes.');
-        self::assertSame('76.20', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
+        self::assertSame(number_format($resolved[(int) $pse->getId()]->chargedPrice(), 2, '.', '').' € excl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId().'-untaxed'), 'Above the price with taxes, the answer of the resolver, without taxes.');
+        self::assertSame('76.20 € incl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
     }
 
     public function testThePriceOfAGroupWithoutAListComesFromTheGroupDiscount(): void
@@ -126,8 +126,8 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
 
         $crawler = $this->panel($product, $member);
 
-        self::assertSame('108.00', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
-        self::assertSame('120.00', $this->text($crawler, 'effective-prices-catalog-'.$pse->getId()));
+        self::assertSame('108.00 € incl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
+        self::assertSame('120.00 € incl. tax', $this->text($crawler, 'effective-prices-catalog-'.$pse->getId()));
     }
 
     public function testTheTiersOfTheListAreListedWithTheirMinimumQuantity(): void
@@ -143,9 +143,9 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
         $crawler = $this->panel($product, $member);
 
         $tiers = $this->text($crawler, 'effective-prices-tiers-'.$pse->getId());
-        self::assertStringContainsString('1+ : 12.00 (excl. taxes 10.00)', $tiers, 'Taxes included, the price without taxes beside it.');
-        self::assertStringContainsString('10+ : 10.80 (excl. taxes 9.00)', $tiers);
-        self::assertSame('12.00', $this->text($crawler, 'effective-prices-price-'.$pse->getId()), 'The price is the one of one unit.');
+        self::assertStringContainsString('1+ : 10.00 € excl. tax · 12.00 € incl. tax', $tiers, 'Without then with taxes.');
+        self::assertStringContainsString('10+ : 9.00 € excl. tax · 10.80 € incl. tax', $tiers);
+        self::assertSame('12.00 € incl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId()), 'The price is the one of one unit.');
     }
 
     /**
@@ -222,8 +222,8 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
 
         $crawler = $this->panel($product, $member);
 
-        self::assertSame('120.00', $this->text($crawler, 'effective-prices-price-'.$pse->getId()), 'One unit is under the first tier: the catalog price applies.');
-        self::assertStringContainsString('5+ : 84.00', $this->text($crawler, 'effective-prices-tiers-'.$pse->getId()));
+        self::assertSame('120.00 € incl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId()), 'One unit is under the first tier: the catalog price applies.');
+        self::assertStringContainsString('84.00 € incl. tax', $this->text($crawler, 'effective-prices-tiers-'.$pse->getId()));
     }
 
     public function testACombinationAnExclusiveListDoesNotPriceCannotBeBought(): void
@@ -271,7 +271,7 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
 
             $crawler = $this->panel($product, $member);
             self::assertCount(0, $crawler->filter('[data-testid="effective-prices-status"]'), 'A signed-in customer is shown the price.');
-            self::assertSame('120.00', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
+            self::assertSame('120.00 € incl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
             self::assertSame('Yes', $this->text($crawler, 'effective-prices-purchasable-'.$pse->getId()));
         } finally {
             ConfigQuery::write('price_display_mode', $previous ?? 'visible');
@@ -323,11 +323,11 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
 
         $pse->setPromo(0)->save($this->getPropelConnection());
         $crawler = $this->panel($product, $member);
-        self::assertSame('120.00', $this->text($crawler, 'effective-prices-catalog-'.$pse->getId()), 'A promotional price kept on a combination that is not on promotion is not shown.');
+        self::assertSame('120.00 € incl. tax', $this->text($crawler, 'effective-prices-catalog-'.$pse->getId()), 'A promotional price kept on a combination that is not on promotion is not shown.');
 
         $pse->setPromo(1)->save($this->getPropelConnection());
         $crawler = $this->panel($product, $member);
-        self::assertSame('120.00 96.00', $this->text($crawler, 'effective-prices-catalog-'.$pse->getId()));
+        self::assertSame('120.00 96.00 € incl. tax', $this->text($crawler, 'effective-prices-catalog-'.$pse->getId()));
     }
 
     public function testAVisitorIsPricedAsTheDefaultGroup(): void
@@ -341,7 +341,7 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
         $crawler = $this->client->request('GET', self::PANEL.'?product_id='.$product->getId().'&effective_visitor=1');
 
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
-        self::assertSame('120.00', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
+        self::assertSame('120.00 € incl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId()));
         self::assertSame('Yes', $this->text($crawler, 'effective-prices-purchasable-'.$pse->getId()));
     }
 
@@ -364,11 +364,14 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
         }
 
         $crawler = $this->client->request('GET', self::PANEL.'?product_id='.$product->getId().'&effective_customer_q=Priced');
-        self::assertCount(20, $crawler->filter('[data-testid="effective-prices-results"] li'));
-        self::assertStringContainsString('effective_customer_id=', (string) $crawler->filter('[data-testid="effective-prices-results"] a')->first()->attr('href'));
+        self::assertCount(20, $crawler->filter('[data-testid="effective-prices-results"] tbody tr'));
+        $link = (string) $crawler->filter('[data-testid="effective-prices-results"] a')->first()->attr('href');
+        self::assertStringContainsString('effective_customer_id=', $link);
+        self::assertStringEndsWith('#other-prices', $link, 'The page comes back to the card.');
+        self::assertCount(1, $crawler->filter('[data-testid="effective-prices-results-capped"]'), 'A full list says it may be cut.');
 
         $crawler = $this->client->request('GET', self::PANEL.'?product_id='.$product->getId().'&effective_customer_q=Pr');
-        self::assertCount(0, $crawler->filter('[data-testid="effective-prices-results"] li'));
+        self::assertCount(0, $crawler->filter('[data-testid="effective-prices-results"]'));
     }
 
     public function testAPriceWithTaxesKeepsTheDecimalsOfThePriceWithout(): void
@@ -399,6 +402,39 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
         self::assertStringNotContainsString('PRO-TITLED', $source);
     }
 
+    public function testThePriceTheCustomerIsShownIsInBold(): void
+    {
+        [$product, $pse] = $this->product();
+        $untaxedGroup = $this->factory->customerGroup(displayTaxedPrice: false);
+        $member = $this->factory->customer($this->factory->customerTitle(), ['customerGroup' => $untaxedGroup]);
+
+        $crawler = $this->panel($product, $member);
+        self::assertStringContainsString('fw-semibold', (string) $crawler->filter('[data-testid="effective-prices-price-'.$pse->getId().'-untaxed"]')->attr('class'), 'Its group is shown the prices without taxes.');
+        self::assertStringNotContainsString('fw-semibold', (string) $crawler->filter('[data-testid="effective-prices-price-'.$pse->getId().'"]')->attr('class'));
+    }
+
+    public function testASearchThatFindsOneCustomerOpensItAndOneThatFindsNoneSaysSo(): void
+    {
+        [$product] = $this->product();
+        $this->factory->customer($this->factory->customerTitle(), ['firstname' => 'Ada', 'lastname' => 'Uniquename', 'email' => 'ada.uniquename@example.test']);
+
+        $crawler = $this->client->request('GET', self::PANEL.'?product_id='.$product->getId().'&effective_customer_q=Uniquename');
+        self::assertCount(0, $crawler->filter('[data-testid="effective-prices-results"]'));
+        self::assertStringContainsString('Uniquename', $crawler->filter('[data-testid="effective-prices-subject"]')->text());
+        self::assertCount(1, $crawler->filter('[data-testid="effective-prices-table"]'));
+
+        $this->factory->customer($this->factory->customerTitle(), ['firstname' => 'Bob', 'lastname' => 'Uniquename', 'email' => 'bob.uniquename@example.test']);
+        $crawler = $this->client->request('GET', self::PANEL.'?product_id='.$product->getId().'&effective_customer_q=Uniquename');
+        self::assertCount(2, $crawler->filter('[data-testid="effective-prices-results"] tbody tr'));
+        self::assertCount(0, $crawler->filter('[data-testid="effective-prices-results-capped"]'), 'A short list is complete.');
+
+        $crawler = $this->client->request('GET', self::PANEL.'?product_id='.$product->getId().'&effective_customer_q='.str_repeat('a', 300));
+        self::assertSame(100, mb_strlen((string) $crawler->filter('[data-testid="effective-prices-search"]')->attr('value')), 'A term longer than the field is cut to it.');
+
+        $crawler = $this->client->request('GET', self::PANEL.'?product_id='.$product->getId().'&effective_customer_q=Nobodyhere');
+        self::assertStringContainsString('Nobodyhere', $crawler->filter('[data-testid="effective-prices-no-result"]')->text());
+    }
+
     public function testBothTheRightToSeeThePricingAndTheOneToSeeTheCustomersAreNeeded(): void
     {
         [$product, $pse] = $this->product();
@@ -422,7 +458,7 @@ final class EffectivePriceBackOfficeTest extends WebIntegrationTestCase
         $this->injector->setAdmin($this->restrictedAdmin([AdminResources::PRODUCT => [AccessManager::VIEW], AdminResources::PRICING => [AccessManager::VIEW], AdminResources::CUSTOMER => [AccessManager::VIEW]]));
         $crawler = $this->client->request('GET', $tab);
         self::assertCount(1, $crawler->filter('[data-testid="effective-prices-section"]'));
-        self::assertSame('120.00', $this->text($crawler, 'effective-prices-price-'.$pse->getId()), 'The panel prices the customer chosen in the query of the page.');
+        self::assertSame('120.00 € incl. tax', $this->text($crawler, 'effective-prices-price-'.$pse->getId()), 'The panel prices the customer chosen in the query of the page.');
     }
 
     /**

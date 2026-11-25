@@ -20,7 +20,7 @@
 {% if panels is not empty %}
     {% set active = panels|filter(panel => panel.key == other_prices_tab|default(''))|first %}
     {% set active_key = active ? active.key : (panels|first).key %}
-    <div class="card mb-3 bo-other-prices" data-testid="other-prices-section" data-controller="bo-other-prices">
+    <div class="card mb-3 bo-other-prices" id="other-prices" data-testid="other-prices-section" data-controller="bo-other-prices">
         <div class="card-header">
             <h2 class="h5 mb-0">{{ 'Other prices'|trans }}</h2>
             <ul class="nav nav-tabs bo-other-prices__tabs" role="tablist" data-testid="other-prices-tabs">

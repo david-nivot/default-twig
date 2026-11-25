@@ -73,7 +73,7 @@ final readonly class EffectivePricePresenter
     }
 
     /**
-     * @return array{group: string, status: string, rows: list<array<string, mixed>>}
+     * @return array{group: string, taxed: bool, status: string, rows: list<array<string, mixed>>}
      */
     public function present(Product $product, Currency $currency, ?Customer $customer, string $locale): array
     {
@@ -136,6 +136,8 @@ final readonly class EffectivePricePresenter
 
         return [
             'group' => CustomerGroupRepository::titleOf($this->prices->customerGroupOf($customer), $locale),
+            // Whether the customer is shown the prices with taxes, as its group says.
+            'taxed' => $this->prices->displaysTaxedPrices($customer),
             'status' => $status,
             'rows' => $rows,
         ];

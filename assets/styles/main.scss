@@ -3408,6 +3408,17 @@ form[data-bo-unsaved-changes-dirty] .bo-combinations-savebar {
     }
 }
 
+.bo-effective-prices__search {
+    width: auto;
+    flex: 1 1 18rem;
+    max-width: 32rem;
+}
+
+.table.bo-effective-prices__table > tbody > tr > td {
+    vertical-align: middle;
+    padding-block: .45rem;
+}
+
 // The effective prices read what is saved: said as soon as a form of the page holds changes.
 .bo-effective-prices__unsaved {
     display: none;
