@@ -1469,5 +1469,8 @@ return [
     '%price% incl. taxes' => '%price% incl. taxes',
     '%price% incl. taxes (sale price)' => '%price% incl. taxes (sale price)',
     'from %min%, by %step%' => 'from %min%, by %step%',
+    'None of the changes of this combination were saved.' => 'None of the changes of this combination were saved.',
+    '« %field% » must be greater than zero.' => '« %field% » must be greater than zero.',
+    '« %field% » cannot carry more decimals than « %decimals_field% » allows (%decimals%).' => '« %field% » cannot carry more decimals than « %decimals_field% » allows (%decimals%).',
     'Show every field' => 'Show every field',
 ];

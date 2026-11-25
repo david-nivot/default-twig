@@ -19,23 +19,50 @@ export default class extends Controller {
     };
 
     connect() {
-        this.onPriceChange = () => this.compute();
+        // A refused rule is asked again rather than dropped with the line.
+        this.onPriceChange = () => this.compute({ rulesUnchanged: !this.refused });
         this.watched = [this.priceInput, this.salePriceInput, this.onSaleInput].filter(Boolean);
         this.watched.forEach((input) => input.addEventListener('change', this.onPriceChange));
         // The server rendered the line of the saved values: a reset gives it back, without a request.
         this.initialLine = this.hasLineTarget ? { hidden: this.lineTarget.hidden, html: this.hasLineTextTarget ? this.lineTextTarget.innerHTML : '' } : null;
         // Values are restored after the reset event.
         this.onReset = () => setTimeout(() => this.restoreInitialLine());
+        this.onSubmit = (event) => this.holdIfRefused(event);
         this.resetForm = this.form;
         this.resetForm?.addEventListener('reset', this.onReset);
+        this.resetForm?.addEventListener('submit', this.onSubmit);
     }
 
     disconnect() {
         (this.watched ?? []).forEach((input) => input.removeEventListener('change', this.onPriceChange));
         this.resetForm?.removeEventListener('reset', this.onReset);
+        this.resetForm?.removeEventListener('submit', this.onSubmit);
+        this.forgetPendingAnswer();
     }
 
-    async compute() {
+    /** An answer asked for before the last change no longer counts: it could arrive after the right one. */
+    forgetPendingAnswer() {
+        this.ticket = (this.ticket ?? 0) + 1;
+        this.pending?.abort();
+        this.pending = null;
+
+        return this.ticket;
+    }
+
+    /** The server would skip the whole row and the page would lose what was typed in it: the first refused row is shown instead. */
+    holdIfRefused(event) {
+        if (!this.refused) {
+            return;
+        }
+        event.preventDefault();
+        if (!event.refusedRowShown) {
+            event.refusedRowShown = true;
+            this.element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+    }
+
+    /** Without a unit or a price there is no line, but a rule just typed is still checked: the server would refuse the row. */
+    async compute(options = {}) {
         // A project copy of the fold without one of these fields keeps the line the server wrote.
         if (!this.hasUnitQuantityTarget || !this.hasReferenceUnitQuantityTarget || !this.hasUnitCodeTarget) {
             return;
@@ -44,8 +71,9 @@ export default class extends Controller {
         const referenceUnitQuantity = this.referenceUnitQuantityTarget.value.trim();
         const unitCode = this.unitCodeTarget.value;
         const price = this.payablePrice();
+        const ticket = this.forgetPendingAnswer();
 
-        if (unitQuantity === '' || referenceUnitQuantity === '' || unitCode === '' || price === '') {
+        if ((unitQuantity === '' || referenceUnitQuantity === '' || unitCode === '' || price === '') && options.rulesUnchanged === true) {
             this.showLine(null);
 
             return;
@@ -72,14 +100,20 @@ export default class extends Controller {
             url.searchParams.set('on_sale', this.onSale() ? '1' : '0');
         }
 
+        this.pending = new AbortController();
         try {
-            const response = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const response = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: this.pending.signal });
             const payload = await response.json();
+            if (ticket !== this.ticket) {
+                return;
+            }
             // A refused rule answers 422 with the reason, shown as text in the line.
             const error = typeof payload?.error === 'string' && payload.error !== '' ? payload.error : null;
-            this.showLine(payload?.line ?? error);
+            this.showLine(payload?.line ?? error, error !== null);
         } catch {
-            this.showLine(null);
+            if (ticket === this.ticket) {
+                this.showLine(null);
+            }
         }
     }
 
@@ -87,6 +121,7 @@ export default class extends Controller {
         if (this.initialLine === null) {
             return;
         }
+        this.forgetPendingAnswer();
         this.showLine(null);
         this.lineTarget.hidden = this.initialLine.hidden;
         if (this.hasLineTextTarget) {
@@ -95,11 +130,19 @@ export default class extends Controller {
     }
 
     /** The parts of the line ({ label, value }), or the reason a rule is refused, as text. */
-    showLine(line) {
+    showLine(line, refused = false) {
+        this.refused = refused;
         if (!this.hasLineTarget) {
             return;
         }
         this.lineTarget.hidden = line === null || line === '' || (Array.isArray(line) && line.length === 0);
+        const box = this.lineTarget.querySelector('.bo-combinations-grid__extra-box');
+        box?.classList.toggle('bo-combinations-grid__extra-box--info', !refused);
+        box?.classList.toggle('bo-combinations-grid__extra-box--danger', refused);
+        const icon = box?.querySelector('.bi');
+        if (icon) {
+            icon.className = `bi ${refused ? 'bi-exclamation-triangle' : 'bi-rulers'}`;
+        }
         if (!this.hasLineTextTarget) {
             return;
         }

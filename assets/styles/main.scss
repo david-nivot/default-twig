@@ -2926,6 +2926,11 @@ tr.bo-order-row--urgent {
             color: var(--bs-warning-text-emphasis);
         }
 
+        &--danger {
+            background-color: rgba($danger-bg-subtle, .55);
+            color: var(--bs-danger-text-emphasis);
+        }
+
         .btn-link {
             --bs-btn-font-size: .8rem;
         }

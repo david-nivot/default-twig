@@ -159,6 +159,7 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
         $refusals = $this->flashes()['danger'];
         self::assertCount(1, $refusals, implode(' | ', $refusals));
         self::assertStringContainsString($refused->getRef(), $refusals[0]);
+        self::assertStringEndsWith('None of the changes of this combination were saved.', $refusals[0]);
         self::assertSame('1.000000', $this->fresh($refused)->getQuantityStep(), 'The refused row is not saved at all.');
         self::assertSame(7.0, (float) $this->fresh($refused)->getQuantity());
         self::assertSame('6.000000', $this->fresh($saved)->getQuantityStep());
@@ -330,6 +331,14 @@ final class ProductCombinationQuantityRulesTest extends WebIntegrationTestCase
 
         $this->client->request('GET', self::PREVIEW_URL, ['price' => '9.99', 'unit_quantity' => 'abc', 'reference_unit_quantity' => '1', 'unit_code' => 'l']);
         self::assertSame(422, $this->client->getResponse()->getStatusCode());
+
+        // A combination sold by the piece, not priced yet: no line, but its rules are still checked.
+        $noUnit = ['price' => '', 'unit_quantity' => '', 'reference_unit_quantity' => '', 'unit_code' => '', 'min_quantity' => '1', 'quantity_decimals' => '0'];
+        $this->client->request('GET', self::PREVIEW_URL, $noUnit + ['quantity_step' => '0,5']);
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Sold by', (string) json_decode((string) $this->client->getResponse()->getContent(), true)['error']);
+        $this->client->request('GET', self::PREVIEW_URL, $noUnit + ['quantity_step' => '1']);
+        self::assertSame(['result' => null, 'formatted' => null, 'line' => null], json_decode((string) $this->client->getResponse()->getContent(), true));
     }
 
     public function testAnAdministratorWhoMayOnlyViewProductsIsRefusedEveryWrite(): void

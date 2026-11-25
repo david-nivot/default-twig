@@ -87,6 +87,7 @@ final class ProductCombinationIdentifiersTest extends WebIntegrationTestCase
         self::assertCount(1, $refusals, implode(' | ', $refusals));
         self::assertStringContainsString($refused->getRef(), $refusals[0]);
         self::assertStringContainsString('check digit', $refusals[0]);
+        self::assertStringEndsWith('None of the changes of this combination were saved.', $refusals[0]);
 
         self::assertSame(7.0, (float) $this->fresh($refused)->getQuantity(), 'The refused row is not saved at all.');
         self::assertSame('', (string) $this->fresh($refused)->getEanCode());

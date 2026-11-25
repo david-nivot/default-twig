@@ -4223,5 +4223,8 @@ return [
     '%price% incl. taxes' => '%price% TTC',
     '%price% incl. taxes (sale price)' => '%price% TTC (prix promo)',
     'from %min%, by %step%' => 'dès %min%, par %step%',
+    'None of the changes of this combination were saved.' => 'Aucune modification de cette combinaison n\'a été enregistrée.',
+    '« %field% » must be greater than zero.' => '« %field% » doit être supérieur à zéro.',
+    '« %field% » cannot carry more decimals than « %decimals_field% » allows (%decimals%).' => '« %field% » ne peut pas avoir plus de décimales que n\'en permet « %decimals_field% » (%decimals%).',
     'Show every field' => 'Afficher tous les champs',
 ];
